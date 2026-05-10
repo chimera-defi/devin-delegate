@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "provider": "devin",
+  "model": "devin-default",
+  "timeout_seconds": 300,
+  "max_output_tokens": 2000,
+  "max_retries": 1,
+  "fallback_engine": "codex",
+  "fallback_provider": "openai",
+  "fallback_model": "o3-mini",
+  "max_timeout_seconds": 600,
+  "large_repo_threshold_files": 10000,
+  "large_repo_threshold_mb": 500,
+  "large_repo_timeout_multiplier": 2.0,
+  "xlarge_repo_threshold_files": 50000,
+  "xlarge_repo_threshold_mb": 1000,
+  "xlarge_repo_timeout_multiplier": 3.0,
+  "workspace_default": "/root/.openclaw/workspace"
+}

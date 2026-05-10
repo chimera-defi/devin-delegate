@@ -1,0 +1,47 @@
+{
+  "version": "0.2.0",
+  "default": {
+    "model": "devin-default",
+    "max_output_tokens": 1500,
+    "timeout_seconds": 300,
+    "retry": 1,
+    "timeout_scale": 1.0
+  },
+  "task_classes": {
+    "research": {
+      "model": "devin-default",
+      "max_output_tokens": 1200,
+      "timeout_seconds": 240,
+      "retry": 1,
+      "timeout_scale": 1.0
+    },
+    "implement": {
+      "model": "devin-default",
+      "max_output_tokens": 2000,
+      "timeout_seconds": 300,
+      "retry": 1,
+      "timeout_scale": 1.5
+    },
+    "debug": {
+      "model": "devin-default",
+      "max_output_tokens": 1800,
+      "timeout_seconds": 300,
+      "retry": 1,
+      "timeout_scale": 1.5
+    },
+    "review": {
+      "model": "devin-default",
+      "max_output_tokens": 1500,
+      "timeout_seconds": 240,
+      "retry": 1,
+      "timeout_scale": 1.2
+    },
+    "browser": {
+      "model": "devin-default",
+      "max_output_tokens": 1200,
+      "timeout_seconds": 300,
+      "retry": 0,
+      "timeout_scale": 1.5
+    }
+  }
+}

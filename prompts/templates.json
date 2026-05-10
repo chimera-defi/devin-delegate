@@ -1,0 +1,32 @@
+{
+  "research-best-practices": {
+    "task_class": "research",
+    "description": "Research best practices for a technology or pattern",
+    "template": "Research current best practices for {{topic}}. Include: official docs, community consensus, common pitfalls, and 3 concrete code examples."
+  },
+  "implement-feature": {
+    "task_class": "implement",
+    "description": "Implement a scoped feature or component",
+    "template": "Implement {{feature}} in the workspace. Follow existing code style, add tests if a test framework is present, and report what files were changed."
+  },
+  "debug-error": {
+    "task_class": "debug",
+    "description": "Debug a specific error or failing behavior",
+    "template": "Debug the following error in the workspace: {{error}}. Find root cause, propose a minimal fix, and verify the fix works."
+  },
+  "review-pr": {
+    "task_class": "review",
+    "description": "Review a set of changes for quality and risks",
+    "template": "Review the current git diff (or files: {{files}}) for: bugs, security issues, style violations, and missing tests. Provide a structured report."
+  },
+  "browser-test": {
+    "task_class": "browser",
+    "description": "Test a web page or user flow in the browser",
+    "template": "Open {{url}} in a browser, test the user flow: {{flow}}. Report any console errors, broken elements, or visual regressions. Take screenshots if possible."
+  },
+  "quick-audit": {
+    "task_class": "review",
+    "description": "Quick health audit of the repo",
+    "template": "Run a quick audit of this repo: check for missing tests, outdated dependencies, security issues in package files, and any broken build commands."
+  }
+}

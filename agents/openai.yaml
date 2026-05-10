@@ -1,0 +1,6 @@
+interface:
+  display_name: "Devin Delegate"
+  short_description: "Structured delegation to Devin sub-agent with workspace context and fallback."
+  default_prompt: "Use $devin-delegate for bounded tasks: plan envelope -> delegate to Devin -> validate -> log telemetry."
+policy:
+  allow_implicit_invocation: true
