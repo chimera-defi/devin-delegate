@@ -7,7 +7,7 @@ description: |
 metadata:
   author: "Kimi K2"
   category: "orchestration"
-  version: "0.2.0"
+  version: "0.2.1"
   argument_hint: "[task-or-scope]"
 allowed-tools:
   - Bash
@@ -111,3 +111,29 @@ dd --stats
 ```
 
 Shorthand `dd` is available if installed via `./setup.sh`.
+
+## Bypass Detection
+
+```bash
+./scripts/detect_bypass.py --nudge              # check for raw `devin --print` calls that skipped the wrapper
+./scripts/detect_bypass.py --watch              # continuous watch mode
+./scripts/detect_bypass.py --output report.json # save full report
+```
+
+## Comparison: Devin vs Kimi Delegate
+
+Both skills share the same envelope/fallback/telemetry architecture. Choose based on task type:
+
+| Dimension | devin-delegate | kimi-delegate |
+|---|---|---|
+| **Speed** | ~14s (sandbox warm) | ~45s (model inference) |
+| **Task classes** | research, implement, debug, review, browser | search, summarize, draft, review, implementation-lite |
+| **Sandbox** | Full (browser, shell, file editing) | CLI-only |
+| **Token budget** | 1200–2000 output tokens | 500–1200 output tokens |
+| **Base timeout** | 300s | 120s |
+| **Best for** | Implementation, debugging, browser/UI tasks | Search, summarize, lightweight drafting |
+| **Fallback** | Codex o3-mini | Codex gpt-5.3 |
+
+Use `kimi-delegate` (`/kimi-delegate`) for cheap bounded research. Use `devin-delegate` when you need browser, shell sandbox, or full implementation.
+
+See also: `/root/.openclaw/workspace/dev/kimi-delegate-skill/`
