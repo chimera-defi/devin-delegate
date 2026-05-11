@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "provider": "devin",
   "model": "devin-default",
   "timeout_seconds": 300,
