@@ -449,6 +449,7 @@ def run_delegate(
     workspace: Path | None = None,
     show_cost: bool = False,
     timeout_override: int | None = None,
+    quick: bool = False,
 ) -> int:
     if not dry_run:
         health_cache = repo_root / "artifacts" / "devin-delegate" / ".health-cache"
@@ -532,11 +533,14 @@ def run_delegate(
     if not target_workspace.exists():
         print(f"error: workspace does not exist: {target_workspace}", flush=True)
         return 2
+    if not os.access(target_workspace, os.W_OK):
+        print(f"error: workspace is not writable: {target_workspace}", flush=True)
+        return 2
 
     env = os.environ.copy()
     env["PWD"] = str(target_workspace)
 
-    cmd = [devin, "--print", prompt]
+    cmd = [devin, "--permission-mode", "dangerous", "--print", prompt]
 
     fallback_used = False
     fallback_reason = ""
@@ -551,6 +555,8 @@ def run_delegate(
     last_stderr = ""
 
     while retry_count <= max_retries:
+        if timeout_seconds > 60 and not quick:
+            print(f"⏳ Executing (timeout: {timeout_seconds}s, attempt {retry_count + 1}/{max_retries + 1})...", flush=True)
         rc, out, err, attempt_latency_ms = call(cmd, timeout=timeout_seconds, cwd=str(target_workspace), env=env)
         attempt_latencies.append(round(attempt_latency_ms, 2))
         latency_ms += attempt_latency_ms
@@ -658,6 +664,10 @@ def run_delegate(
         str(saved),
         "--latency-ms",
         str(round(latency_ms, 2)),
+        "--estimated-cost-usd",
+        str(round(delegate_output_tokens * 0.000003, 4)),
+        "--estimated-savings-usd",
+        str(round(max(0, parent_estimate_tokens * 0.00001 - delegate_output_tokens * 0.000003), 4)),
         "--meta",
         json.dumps(telemetry_meta),
     ]
@@ -703,6 +713,7 @@ def run_batch(
     repo_root: Path,
     workspace: Path | None = None,
     dry_run: bool = False,
+    quick: bool = False,
 ) -> int:
     path = Path(batch_file)
     if not path.exists():
@@ -736,7 +747,7 @@ def run_batch(
         ws = Path(line_workspace) if line_workspace else workspace
 
         print(f"\n{'='*60}\n[batch {i}/{len(lines)}] {task}\n{'='*60}", flush=True)
-        rc = run_delegate(task, line_context, line_class, dry_run, False, config, routing, repo_root, workspace=ws, show_cost=False, timeout_override=None)
+        rc = run_delegate(task, line_context, line_class, dry_run, False, config, routing, repo_root, workspace=ws, show_cost=False, timeout_override=None, quick=quick)
         results.append({"line": i, "task": task, "rc": rc})
         if rc != 0:
             overall_rc = rc
@@ -855,11 +866,11 @@ def main() -> int:
         return 2
 
     if args.batch:
-        return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run)
+        return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick)
 
     save_task_to_history(repo_root, task)
 
-    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None)
+    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick)
 
     if rc == 0 and not args.quick and not args.dry_run:
         print(f"\n✅ Task completed via Devin wrapper. Run 'dd --stats' for telemetry.", flush=True)

@@ -82,6 +82,8 @@ def summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
     latency_count = 0
     total_saved = 0
     total_parent_tokens = 0
+    total_cost_usd = 0.0
+    total_savings_usd = 0.0
     auth_errors = 0
     timeouts = 0
     timeout_by_large_repo = 0
@@ -138,6 +140,14 @@ def summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         if isinstance(parent_tokens, int) and parent_tokens > 0:
             total_parent_tokens += parent_tokens
 
+        cost_usd = ev.get("estimated_cost_usd")
+        if isinstance(cost_usd, (int, float)) and cost_usd >= 0:
+            total_cost_usd += float(cost_usd)
+
+        savings_usd = ev.get("estimated_savings_usd")
+        if isinstance(savings_usd, (int, float)) and savings_usd >= 0:
+            total_savings_usd += float(savings_usd)
+
     savings_pct = round((total_saved * 100.0 / total_parent_tokens), 2) if total_parent_tokens else 0.0
 
     return {
@@ -156,6 +166,8 @@ def summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         "avg_latency_ms": round(total_latency / latency_count, 2) if latency_count else 0.0,
         "estimated_tokens_saved": total_saved,
         "estimated_savings_pct": savings_pct,
+        "total_cost_usd": round(total_cost_usd, 4),
+        "total_savings_usd": round(total_savings_usd, 4),
     }
 
 
@@ -176,6 +188,8 @@ def main() -> int:
     record.add_argument("--delegate-output-tokens", type=int, default=0)
     record.add_argument("--estimated-tokens-saved", type=int, default=0)
     record.add_argument("--latency-ms", type=float, default=0.0)
+    record.add_argument("--estimated-cost-usd", type=float, default=0.0)
+    record.add_argument("--estimated-savings-usd", type=float, default=0.0)
     record.add_argument("--meta", default="")
 
     summary = sub.add_parser("summary")
@@ -205,6 +219,8 @@ def main() -> int:
             "delegate_output_tokens": args.delegate_output_tokens,
             "estimated_tokens_saved": args.estimated_tokens_saved,
             "latency_ms": args.latency_ms,
+            "estimated_cost_usd": args.estimated_cost_usd,
+            "estimated_savings_usd": args.estimated_savings_usd,
             "meta": meta,
         }
         record_event(root, payload)

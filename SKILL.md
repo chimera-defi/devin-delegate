@@ -1,14 +1,10 @@
 ---
 name: devin-delegate
-license: MIT
+preamble-tier: 4
+version: 0.2.2
 description: |
   Route bounded coding and research tasks through Devin (Cognition AI) as a sub-agent
   with structured envelopes, workspace context, fallback routing, and telemetry.
-metadata:
-  author: "Kimi K2"
-  category: "orchestration"
-  version: "0.2.1"
-  argument_hint: "[task-or-scope]"
 allowed-tools:
   - Bash
   - Read
@@ -132,7 +128,7 @@ Both skills share the same envelope/fallback/telemetry architecture. Choose base
 | **Token budget** | 1200–2000 output tokens | 500–1200 output tokens |
 | **Base timeout** | 300s | 120s |
 | **Best for** | Implementation, debugging, browser/UI tasks | Search, summarize, lightweight drafting |
-| **Fallback** | Codex o3-mini | Codex gpt-5.3 |
+| **Fallback** | Codex default | Codex gpt-5.3 |
 
 Use `kimi-delegate` (`/kimi-delegate`) for cheap bounded research. Use `devin-delegate` when you need browser, shell sandbox, or full implementation.
 
