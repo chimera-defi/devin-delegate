@@ -36,9 +36,12 @@ Use this skill when you want a stronger parent agent to plan and guardrails-chec
 1. Pre-flight check:
    - `./scripts/env_check.py`
    - Or: `devin-delegate --check`
-2. Build envelope and delegate:
+2. Optional: Run safety checks:
+   - `devin-delegate --safety-check --task "..."`
+3. Build envelope and delegate:
    - `devin-delegate --task "..." --workspace /root/.openclaw/workspace/dev/some-repo`
    - Or with a template: `devin-delegate --template implement-feature --var feature="JWT middleware"`
+   - Or interactive: `devin-delegate --interactive --task "..."`
 
 ## Process
 
@@ -95,6 +98,9 @@ devin-delegate --history   # recent tasks
 - Logs include model, latency, fallback reason, and estimated token savings.
 - Workspace context is always passed to Devin.
 - Fallback is deterministic and visible in telemetry.
+- Safety checks can detect dangerous operations before delegation.
+- Cost estimation uses accurate provider-specific pricing.
+- Interactive mode allows envelope review and modification before execution.
 
 ## Usage
 
@@ -103,6 +109,9 @@ devin-delegate "research React Server Components best practices"
 devin-delegate --task "implement a JWT auth middleware in Express" --workspace /root/.openclaw/workspace/dev/my-app
 devin-delegate --template browser-test --workspace /root/.openclaw/workspace/dev/my-app
 devin-delegate --template implement-feature --var feature="rate limiter" --workspace /root/.openclaw/workspace/dev/my-app
+devin-delegate --safety-check --task "clean up log files"  # Run safety checks first
+devin-delegate --interactive --task "refactor the auth module"  # Review envelope before execution
+devin-delegate --cost --task "add unit tests"  # Show cost breakdown
 dd --stats
 ```
 

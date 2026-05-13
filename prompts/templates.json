@@ -28,5 +28,25 @@
     "task_class": "review",
     "description": "Quick health audit of the repo",
     "template": "Run a quick audit of this repo: check for missing tests, outdated dependencies, security issues in package files, and any broken build commands."
+  },
+  "migrate-deps": {
+    "task_class": "implement",
+    "description": "Migrate dependencies to newer versions",
+    "template": "Migrate {{package}} from version {{from_version}} to {{to_version}} in this workspace. Update all import statements, fix breaking changes, run tests to ensure compatibility, and document any API changes required."
+  },
+  "security-audit": {
+    "task_class": "review",
+    "description": "Security-focused code review",
+    "template": "Conduct a security audit of this codebase focusing on: authentication/authorization flaws, input validation, SQL injection, XSS vulnerabilities, dependency vulnerabilities, secrets management, and secure configuration. Provide a structured report with severity ratings and remediation steps."
+  },
+  "perf-optimize": {
+    "task_class": "implement",
+    "description": "Performance optimization for specific components",
+    "template": "Optimize the performance of {{component}} in this workspace. Identify bottlenecks, implement efficient algorithms, reduce complexity, add caching where appropriate, and measure performance improvements. Ensure existing functionality remains intact."
+  },
+  "add-tests": {
+    "task_class": "implement",
+    "description": "Add comprehensive tests for existing code",
+    "template": "Add comprehensive tests for {{target}} in this workspace. Identify the testing framework being used, write unit tests for edge cases, add integration tests where appropriate, ensure good coverage, and follow existing test patterns. Run the test suite to verify all tests pass."
   }
 }

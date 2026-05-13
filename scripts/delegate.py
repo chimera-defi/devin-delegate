@@ -13,6 +13,38 @@ import time
 from pathlib import Path
 from typing import Any
 
+# Import cost estimation utilities
+try:
+    from cost_estimator import (
+        load_pricing_config,
+        estimate_cost,
+        estimate_parent_cost,
+        calculate_savings,
+        format_cost_display
+    )
+except ImportError:
+    # Fallback if cost_estimator module not available
+    def load_pricing_config():
+        return {}
+    def estimate_cost(*args, **kwargs):
+        return 0.0
+    def estimate_parent_cost(*args, **kwargs):
+        return 0.0
+    def calculate_savings(*args, **kwargs):
+        return {"savings_usd": 0.0, "savings_pct": 0.0, "delegate_cheaper": False}
+    def format_cost_display(*args, **kwargs):
+        return "Cost estimation unavailable"
+
+# Import safety sandbox utilities
+try:
+    from safety_sandbox import SafetySandbox, run_safety_checks
+except ImportError:
+    # Fallback if safety_sandbox module not available
+    def SafetySandbox(*args, **kwargs):
+        return None
+    def run_safety_checks(*args, **kwargs):
+        return True, "Safety checks unavailable"
+
 
 def script_root() -> Path:
     return Path(__file__).resolve().parent
@@ -437,6 +469,58 @@ def print_stats(repo_root: Path) -> int:
         return 1
 
 
+def interactive_confirm(envelope: dict, timeout_seconds: int, workspace: Path) -> tuple[bool, dict, int]:
+    """Interactive mode: show envelope and ask for confirmation/modification."""
+    if not sys.stdin.isatty():
+        print("warning: --interactive requires a TTY; proceeding without confirmation.", flush=True)
+        return True, envelope, timeout_seconds
+
+    print("\n" + "="*60)
+    print("📋 INTERACTIVE MODE - Task Envelope Review")
+    print("="*60)
+    print(f"\nTask: {envelope.get('goal', 'N/A')}")
+    print(f"Class: {envelope.get('task_class', 'default')}")
+    print(f"Workspace: {workspace}")
+    print(f"Timeout: {timeout_seconds}s")
+    constraints = envelope.get('constraints', {})
+    if isinstance(constraints, dict):
+        constraints_str = ", ".join(f"{k}={v}" for k, v in constraints.items())
+    else:
+        constraints_str = str(constraints)
+    print(f"\nConstraints: {constraints_str}")
+    print(f"\nAcceptance Criteria:")
+    for i, criteria in enumerate(envelope.get('acceptance', []), 1):
+        print(f"  {i}. {criteria}")
+    
+    print("\n" + "="*60)
+    
+    while True:
+        response = input("\nProceed with delegation? [Y/n/m/q] ").strip().lower()
+        if response in ('', 'y', 'yes'):
+            return True, envelope, timeout_seconds
+        elif response in ('n', 'no'):
+            return False, envelope, timeout_seconds
+        elif response in ('m', 'modify'):
+            # Allow modification of timeout
+            new_timeout = input(f"Enter new timeout (current: {timeout_seconds}s, or press Enter to keep): ").strip()
+            if new_timeout:
+                try:
+                    timeout_seconds = int(new_timeout)
+                    print(f"Timeout updated to {timeout_seconds}s")
+                except ValueError:
+                    print("Invalid timeout value, keeping original")
+            # Allow modification of task class
+            new_class = input(f"Enter new task class (current: {envelope.get('task_class', 'default')}, or press Enter to keep): ").strip()
+            if new_class:
+                envelope['task_class'] = new_class
+                print(f"Task class updated to {new_class}")
+            continue
+        elif response in ('q', 'quit'):
+            return False, envelope, timeout_seconds
+        else:
+            print("Please enter Y (yes), N (no), M (modify), or Q (quit)")
+
+
 def run_delegate(
     task: str,
     context_file: str | None,
@@ -450,8 +534,30 @@ def run_delegate(
     show_cost: bool = False,
     timeout_override: int | None = None,
     quick: bool = False,
+    interactive: bool = False,
+    safety_check: bool = False,
+    strict_safety: bool = False,
 ) -> int:
     if not dry_run:
+        # Run safety checks if requested
+        if safety_check:
+            target_workspace = workspace if workspace else Path(config.get("workspace_default", str(repo_root)))
+            target_workspace = target_workspace.resolve()
+            
+            sandbox = SafetySandbox(target_workspace, strict_mode=strict_safety)
+            summary = sandbox.run_all_checks(task)
+            
+            if not quick:
+                sandbox.print_results()
+            
+            if not summary["passed"]:
+                print(f"\n❌ Safety checks failed. Use --no-safety to bypass or fix the issues.", flush=True)
+                return 128  # Custom exit code for safety check failure
+            
+            if summary["has_warnings"] and strict_safety:
+                print(f"\n❌ Safety warnings in strict mode. Use --no-strict-safety to proceed.", flush=True)
+                return 128
+        
         health_cache = repo_root / "artifacts" / "devin-delegate" / ".health-cache"
         health_cache.parent.mkdir(parents=True, exist_ok=True)
         run_check_now = True
@@ -497,6 +603,16 @@ def run_delegate(
     repo_scale = estimate_repo_scale(repo_root)
     timeout_seconds = compute_timeout(base_timeout, task_class, config, routing, repo_scale, override=timeout_override)
 
+    target_workspace = workspace if workspace else Path(config.get("workspace_default", str(repo_root)))
+    target_workspace = target_workspace.resolve()
+
+    # Interactive mode confirmation
+    if interactive and not dry_run:
+        approved, envelope, timeout_seconds = interactive_confirm(envelope, timeout_seconds, target_workspace)
+        if not approved:
+            print("Task delegation cancelled by user.", flush=True)
+            return 130  # Custom exit code for user cancellation
+
     if print_envelope or dry_run:
         envelope["_computed"] = {
             "timeout_seconds": timeout_seconds,
@@ -528,8 +644,6 @@ def run_delegate(
         )
         return 127
 
-    target_workspace = workspace if workspace else Path(config.get("workspace_default", str(repo_root)))
-    target_workspace = target_workspace.resolve()
     if not target_workspace.exists():
         print(f"error: workspace does not exist: {target_workspace}", flush=True)
         return 2
@@ -627,7 +741,22 @@ def run_delegate(
     parent_tokens = int(envelope.get("metrics", {}).get("parent_context_tokens", 0))
     delegate_input_tokens = estimate_tokens(prompt)
     delegate_output_tokens = estimate_tokens(out) if status != "auth_error" else 0
-    # Heuristic: parent would spend ~3x the prompt context tokens to do the task itself
+    
+    # Load pricing configuration for accurate cost estimation
+    pricing_config = load_pricing_config()
+    
+    # Calculate costs using the new cost estimator
+    if fallback_used:
+        provider = config.get("fallback_engine", "codex")
+        fallback_model = config.get("fallback_model", "gpt-5.3-codex")
+        delegate_cost = estimate_cost(provider, fallback_model, delegate_input_tokens, delegate_output_tokens, pricing_config)
+    else:
+        delegate_cost = estimate_cost("devin", model, delegate_input_tokens, delegate_output_tokens, pricing_config)
+    
+    parent_cost = estimate_parent_cost(parent_tokens, delegate_output_tokens, pricing_config)
+    savings_info = calculate_savings(delegate_cost, parent_cost)
+    
+    # Calculate token savings (legacy metric)
     parent_estimate_tokens = max(parent_tokens, delegate_input_tokens) * 3
     saved = max(0, parent_estimate_tokens - delegate_output_tokens)
 
@@ -665,9 +794,9 @@ def run_delegate(
         "--latency-ms",
         str(round(latency_ms, 2)),
         "--estimated-cost-usd",
-        str(round(delegate_output_tokens * 0.000003, 4)),
+        str(round(delegate_cost, 6)),
         "--estimated-savings-usd",
-        str(round(max(0, parent_estimate_tokens * 0.00001 - delegate_output_tokens * 0.000003), 4)),
+        str(round(savings_info["savings_usd"], 6)),
         "--meta",
         json.dumps(telemetry_meta),
     ]
@@ -692,15 +821,7 @@ def run_delegate(
 
     print(out.rstrip())
     if show_cost:
-        parent_cost = parent_estimate_tokens * 0.00001
-        delegate_cost = delegate_output_tokens * 0.000003
-        savings_usd = max(0, parent_cost - delegate_cost)
-        savings_pct = round(savings_usd * 100.0 / parent_cost, 1) if parent_cost > 0 else 0.0
-        print(
-            f"\n💰 Cost estimate: ${delegate_cost:.4f} (delegate) vs ${parent_cost:.4f} (parent direct)"
-            f" | Saved: ${savings_usd:.4f} ({savings_pct}% cheaper)",
-            flush=True,
-        )
+        print(f"\n{format_cost_display(delegate_cost, parent_cost)}", flush=True)
     return 0
 
 
@@ -714,6 +835,9 @@ def run_batch(
     workspace: Path | None = None,
     dry_run: bool = False,
     quick: bool = False,
+    interactive: bool = False,
+    safety_check: bool = False,
+    strict_safety: bool = False,
 ) -> int:
     path = Path(batch_file)
     if not path.exists():
@@ -747,7 +871,7 @@ def run_batch(
         ws = Path(line_workspace) if line_workspace else workspace
 
         print(f"\n{'='*60}\n[batch {i}/{len(lines)}] {task}\n{'='*60}", flush=True)
-        rc = run_delegate(task, line_context, line_class, dry_run, False, config, routing, repo_root, workspace=ws, show_cost=False, timeout_override=None, quick=quick)
+        rc = run_delegate(task, line_context, line_class, dry_run, False, config, routing, repo_root, workspace=ws, show_cost=False, timeout_override=None, quick=quick, interactive=False, safety_check=safety_check, strict_safety=strict_safety)
         results.append({"line": i, "task": task, "rc": rc})
         if rc != 0:
             overall_rc = rc
@@ -768,6 +892,8 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="Pre-flight env check only")
     parser.add_argument("--stats", action="store_true", help="Print recent telemetry summary")
     parser.add_argument("--interactive", "-i", action="store_true", help="Interactive envelope builder")
+    parser.add_argument("--safety-check", action="store_true", help="Run safety sandbox checks before delegation")
+    parser.add_argument("--strict-safety", action="store_true", help="Strict mode: safety warnings are treated as errors")
     parser.add_argument("--batch", default="", help="Path to JSONL file of tasks to delegate in batch")
     parser.add_argument("--last", action="store_true", help="Re-run the previous task from history")
     parser.add_argument("--quick", "-q", action="store_true", help="Quick mode: suppress extra output")
@@ -866,11 +992,11 @@ def main() -> int:
         return 2
 
     if args.batch:
-        return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick)
+        return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False, safety_check=args.safety_check, strict_safety=args.strict_safety)
 
     save_task_to_history(repo_root, task)
 
-    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick)
+    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick, interactive=args.interactive, safety_check=args.safety_check, strict_safety=args.strict_safety)
 
     if rc == 0 and not args.quick and not args.dry_run:
         print(f"\n✅ Task completed via Devin wrapper. Run 'dd --stats' for telemetry.", flush=True)
