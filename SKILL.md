@@ -64,7 +64,7 @@ Use this skill when you want a stronger parent agent to plan and guardrails-chec
 
 ## Fallback Providers
 
-Multiple fallback providers are supported with priority-based routing:
+Multiple fallback providers are supported. The default fallback is configured in `config/devin-delegate.json`, and you can override the engine per call:
 
 - **Codex** (priority 1): GPT-5.5, GPT-5.3-codex, o3-mini
 - **Kimi** (priority 2): kimi-default, kimi-pro  
