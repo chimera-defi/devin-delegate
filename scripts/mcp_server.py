@@ -98,10 +98,19 @@ class DevinDelegateMCPServer:
                                 "type": "boolean",
                                 "description": "Run safety checks before delegation (default: false)"
                             },
+                            "fallback_engine": {
+                                "type": "string",
+                                "enum": ["codex", "kimi", "anthropic", "pi"],
+                                "description": "Override fallback engine"
+                            },
                             "fallback_provider": {
                                 "type": "string",
                                 "enum": ["codex", "kimi", "anthropic", "pi"],
-                                "description": "Override fallback provider"
+                                "description": "Deprecated alias for fallback_engine"
+                            },
+                            "fallback_pi_provider": {
+                                "type": "string",
+                                "description": "Provider to pass to pi fallback (e.g., kimi-coding, openai)"
                             },
                             "timeout_override": {
                                 "type": "integer",
@@ -228,7 +237,8 @@ class DevinDelegateMCPServer:
         workspace = arguments.get("workspace")
         use_cache = arguments.get("use_cache", True)
         safety_check = arguments.get("safety_check", False)
-        fallback_provider = arguments.get("fallback_provider")
+        fallback_engine = arguments.get("fallback_engine") or arguments.get("fallback_provider")
+        fallback_pi_provider = arguments.get("fallback_pi_provider")
         timeout_override = arguments.get("timeout_override")
         
         workspace_path = Path(workspace) if workspace else self.repo_root
@@ -255,8 +265,10 @@ class DevinDelegateMCPServer:
                 strict_safety=False,
                 use_cache=use_cache,
                 cache_ttl=86400,
-                fallback_provider_override=fallback_provider,
-                fallback_model_override=None
+                fallback_engine_override=fallback_engine,
+                fallback_provider_override=arguments.get("fallback_provider"),
+                fallback_model_override=None,
+                fallback_pi_provider_override=fallback_pi_provider
             )
         )
         

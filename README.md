@@ -78,7 +78,7 @@ Options:
   --context-file PATH      Additional context file to include in envelope
   --template TEXT          Use a predefined task template
   --var KEY=VALUE          Variables for template substitution
-  --timeout SECONDS        Override computed timeout
+  --timeout-override SEC   Override computed timeout
   --dry-run                Show envelope without executing
   --print-envelope         Print the envelope JSON
   --quick                  Skip progress indicators (faster for scripts)
@@ -87,10 +87,13 @@ Options:
   --history                Show recent task history
   --templates              List available templates
   --batch FILE             Process tasks from JSONL file
-  --show-cost              Show estimated cost before execution
+  --cost                   Show estimated cost before execution
   --interactive            Interactive mode (prompt for confirmation)
   --safety-check           Run safety sandbox checks before delegation
   --strict-safety          Strict mode: safety warnings are treated as errors
+  --fallback-engine TEXT   Override fallback engine (codex, kimi, anthropic, pi)
+  --fallback-model TEXT    Override fallback model
+  --fallback-pi-provider   Provider passed to pi fallback (e.g., kimi-coding, openai)
 ```
 
 ### Task Classes
@@ -283,7 +286,13 @@ devin-delegate --check
 Large repositories automatically get extended timeouts. Manual override:
 
 ```bash
-devin-delegate --task "..." --timeout 900
+devin-delegate --task "..." --timeout-override 900
+```
+
+For pi fallback routing:
+
+```bash
+devin-delegate --task "..." --fallback-engine pi --fallback-model k2p6 --fallback-pi-provider kimi-coding
 ```
 
 ### Fallback Triggered

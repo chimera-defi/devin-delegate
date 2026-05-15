@@ -40,7 +40,9 @@ Delegate a task to Devin with structured envelope and fallback routing.
 - `workspace` (optional): Workspace directory path
 - `use_cache` (optional): Enable result caching (default: true)
 - `safety_check` (optional): Run safety checks before delegation (default: false)
-- `fallback_provider` (optional): Override fallback provider - "codex", "kimi", "anthropic", "pi"
+- `fallback_engine` (optional): Override fallback engine - "codex", "kimi", "anthropic", "pi"
+- `fallback_provider` (optional): Deprecated alias for `fallback_engine`
+- `fallback_pi_provider` (optional): Provider passed to pi fallback (for example "kimi-coding", "openai")
 - `timeout_override` (optional): Override timeout in seconds
 
 **Example**:

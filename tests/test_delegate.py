@@ -4,6 +4,7 @@ import json
 import pytest
 from pathlib import Path
 import sys
+from unittest.mock import patch, MagicMock
 
 # Add scripts directory to path
 scripts_dir = Path(__file__).parent.parent / "scripts"
@@ -15,6 +16,8 @@ from delegate import (
     compute_timeout,
     estimate_repo_scale,
     output_is_valid,
+    call,
+    resolve_fallback_settings,
 )
 
 
@@ -177,6 +180,60 @@ class TestLoadTemplates:
             assert "task_class" in template
             assert "description" in template
             assert "template" in template
+
+
+class TestCall:
+    """Test subprocess call wrapper behavior."""
+
+    def test_sets_kimi_delegate_active_env(self):
+        captured_env = {}
+
+        def fake_run(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = ""
+            result.stderr = ""
+            return result
+
+        with patch("delegate.subprocess.run", side_effect=fake_run):
+            rc, out, err, _latency = call(["echo", "hi"], timeout=5)
+
+        assert rc == 0
+        assert out == ""
+        assert err == ""
+        assert captured_env.get("KIMI_DELEGATE_ACTIVE") == "1"
+
+
+class TestResolveFallbackSettings:
+    """Test fallback engine/model/provider resolution."""
+
+    def test_uses_config_defaults(self):
+        config = {
+            "fallback_engine": "codex",
+            "fallback_model": "gpt-5.5",
+            "fallback_provider": "openai",
+        }
+        engine, model, provider = resolve_fallback_settings(config)
+        assert engine == "codex"
+        assert model == "gpt-5.5"
+        assert provider == "openai"
+
+    def test_prefers_overrides(self):
+        config = {
+            "fallback_engine": "codex",
+            "fallback_model": "gpt-5.5",
+            "fallback_provider": "openai",
+        }
+        engine, model, provider = resolve_fallback_settings(
+            config,
+            fallback_engine_override="pi",
+            fallback_model_override="k2p6",
+            fallback_provider_override="kimi-coding",
+        )
+        assert engine == "pi"
+        assert model == "k2p6"
+        assert provider == "kimi-coding"
 
 
 if __name__ == "__main__":

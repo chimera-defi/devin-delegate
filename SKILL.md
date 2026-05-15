@@ -71,9 +71,14 @@ Multiple fallback providers are supported with priority-based routing:
 - **Anthropic** (priority 3): claude-3.5-sonnet, claude-3-opus
 - **Pi** (priority 4): gpt-5.3-codex
 
-Override fallback provider:
+Override fallback engine:
 ```bash
-devin-delegate --fallback-provider kimi --fallback-model kimi-pro "task"
+devin-delegate --fallback-engine kimi --fallback-model kimi-pro "task"
+```
+
+For `pi` fallback, set provider explicitly:
+```bash
+devin-delegate --fallback-engine pi --fallback-model k2p6 --fallback-pi-provider kimi-coding "task"
 ```
 
 ## Environment Check

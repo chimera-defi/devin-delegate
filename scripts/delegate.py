@@ -107,8 +107,11 @@ def estimate_tokens(text: str) -> int:
 
 def call(cmd: list[str], timeout: int, cwd: str | None = None, env: dict[str, str] | None = None) -> tuple[int, str, str, float]:
     start = time.perf_counter()
+    run_env = dict(os.environ if env is None else env)
+    # Guard against pi wrapper re-interception loops when fallback engine is pi.
+    run_env.setdefault("KIMI_DELEGATE_ACTIVE", "1")
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False, cwd=cwd, env=env)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False, cwd=cwd, env=run_env)
         latency_ms = (time.perf_counter() - start) * 1000.0
         return proc.returncode, proc.stdout, proc.stderr, latency_ms
     except subprocess.TimeoutExpired:
@@ -366,6 +369,18 @@ def compute_timeout(
     return min(computed, max_default)
 
 
+def resolve_fallback_settings(
+    config: dict[str, Any],
+    fallback_engine_override: str | None = None,
+    fallback_model_override: str | None = None,
+    fallback_provider_override: str | None = None,
+) -> tuple[str, str, str]:
+    fallback_engine = str(fallback_engine_override if fallback_engine_override else config.get("fallback_engine", "codex")).strip()
+    fallback_model = str(fallback_model_override if fallback_model_override else config.get("fallback_model", "gpt-5.5")).strip()
+    fallback_provider = str(fallback_provider_override if fallback_provider_override else config.get("fallback_provider", "openai")).strip()
+    return fallback_engine, fallback_model, fallback_provider
+
+
 def output_is_valid(text: str, required_sections: list[str]) -> bool:
     if not text.strip():
         return False
@@ -443,6 +458,8 @@ def run_check(config: dict, routing: dict) -> int:
         "checks": checks,
         "config": {
             "provider": config.get("provider"),
+            "fallback_engine": config.get("fallback_engine"),
+            "fallback_provider": config.get("fallback_provider"),
             "fallback_model": config.get("fallback_model"),
         },
     }
@@ -552,8 +569,10 @@ def run_delegate(
     strict_safety: bool = False,
     use_cache: bool = True,
     cache_ttl: int = 86400,
+    fallback_engine_override: str | None = None,
     fallback_provider_override: str | None = None,
     fallback_model_override: str | None = None,
+    fallback_pi_provider_override: str | None = None,
 ) -> int:
     if not dry_run:
         # Run safety checks if requested
@@ -633,6 +652,12 @@ def run_delegate(
     route = routing.get("task_classes", {}).get(task_class, routing.get("default", {}))
     base_timeout = int(route.get("timeout_seconds", config.get("timeout_seconds", 300)))
     model = str(route.get("model", config.get("model", "devin-default")))
+    fallback_engine, fallback_model, fallback_provider = resolve_fallback_settings(
+        config,
+        fallback_engine_override=fallback_engine_override if fallback_engine_override else fallback_provider_override,
+        fallback_model_override=fallback_model_override,
+        fallback_provider_override=fallback_pi_provider_override,
+    )
 
     repo_scale = estimate_repo_scale(repo_root)
     timeout_seconds = compute_timeout(base_timeout, task_class, config, routing, repo_scale, override=timeout_override)
@@ -750,11 +775,11 @@ def run_delegate(
                 "--envelope-file",
                 str(envelope_path),
                 "--fallback-engine",
-                str(fallback_provider_override if fallback_provider_override else config.get("fallback_engine", "codex")),
+                fallback_engine,
                 "--model",
-                str(fallback_model_override if fallback_model_override else config.get("fallback_model", "gpt-5.5")),
+                fallback_model,
                 "--provider",
-                str(config.get("fallback_provider", "openai")),
+                fallback_provider,
                 "--timeout",
                 str(max(timeout_seconds, 300)),
             ]
@@ -770,6 +795,11 @@ def run_delegate(
                 pass
 
             if rc != 0:
+                if fallback_engine == "pi" and "No API key found for openai" in (f_err or ""):
+                    last_stderr += (
+                        "\nHint: pi fallback is using provider=openai with no API key. "
+                        "Use `--fallback-pi-provider kimi-coding` or configure OPENAI_API_KEY."
+                    )
                 status = "error"
 
     parent_tokens = int(envelope.get("metrics", {}).get("parent_context_tokens", 0))
@@ -781,9 +811,7 @@ def run_delegate(
     
     # Calculate costs using the new cost estimator
     if fallback_used:
-        provider = config.get("fallback_engine", "codex")
-        fallback_model = config.get("fallback_model", "gpt-5.3-codex")
-        delegate_cost = estimate_cost(provider, fallback_model, delegate_input_tokens, delegate_output_tokens, pricing_config)
+        delegate_cost = estimate_cost(fallback_engine, fallback_model, delegate_input_tokens, delegate_output_tokens, pricing_config)
     else:
         delegate_cost = estimate_cost("devin", model, delegate_input_tokens, delegate_output_tokens, pricing_config)
     
@@ -804,6 +832,9 @@ def run_delegate(
         "base_timeout": base_timeout,
         "error_category": fallback_reason if fallback_used else "",
         "goal": task,
+        "fallback_engine": fallback_engine if fallback_used else "",
+        "fallback_model": fallback_model if fallback_used else "",
+        "fallback_provider": fallback_provider if fallback_used else "",
     }
 
     telemetry_cmd = [
@@ -816,7 +847,7 @@ def run_delegate(
         "--task-class",
         str(task_class),
         "--model-used",
-        f"devin:{model}" if not fallback_used else f"fallback:{config.get('fallback_engine')}:{config.get('fallback_model')}",
+        f"devin:{model}" if not fallback_used else f"fallback:{fallback_engine}:{fallback_model}",
         "--parent-context-tokens",
         str(parent_tokens),
         "--delegate-input-tokens",
@@ -867,7 +898,7 @@ def run_delegate(
                 task_class, 
                 context_content,
                 metadata={
-                    "model": model if not fallback_used else f"fallback:{config.get('fallback_model')}",
+                    "model": model if not fallback_used else f"fallback:{fallback_engine}:{fallback_model}",
                     "latency_ms": round(latency_ms, 2),
                     "cost_usd": round(delegate_cost, 6),
                     "fallback_used": fallback_used
@@ -897,8 +928,10 @@ def run_batch(
     strict_safety: bool = False,
     use_cache: bool = True,
     cache_ttl: int = 86400,
+    fallback_engine_override: str | None = None,
     fallback_provider_override: str | None = None,
     fallback_model_override: str | None = None,
+    fallback_pi_provider_override: str | None = None,
 ) -> int:
     path = Path(batch_file)
     if not path.exists():
@@ -932,7 +965,7 @@ def run_batch(
         ws = Path(line_workspace) if line_workspace else workspace
 
         print(f"\n{'='*60}\n[batch {i}/{len(lines)}] {task}\n{'='*60}", flush=True)
-        rc = run_delegate(task, line_context, line_class, dry_run, False, config, routing, repo_root, workspace=ws, show_cost=False, timeout_override=None, quick=quick, interactive=False, safety_check=safety_check, strict_safety=strict_safety, use_cache=use_cache, cache_ttl=cache_ttl, fallback_provider_override=fallback_provider_override, fallback_model_override=fallback_model_override)
+        rc = run_delegate(task, line_context, line_class, dry_run, False, config, routing, repo_root, workspace=ws, show_cost=False, timeout_override=None, quick=quick, interactive=False, safety_check=safety_check, strict_safety=strict_safety, use_cache=use_cache, cache_ttl=cache_ttl, fallback_engine_override=fallback_engine_override, fallback_provider_override=fallback_provider_override, fallback_model_override=fallback_model_override, fallback_pi_provider_override=fallback_pi_provider_override)
         results.append({"line": i, "task": task, "rc": rc})
         if rc != 0:
             overall_rc = rc
@@ -967,8 +1000,10 @@ def main() -> int:
     parser.add_argument("--dashboard", action="store_true", help="Show telemetry dashboard")
     parser.add_argument("--dashboard-html", action="store_true", help="Generate HTML telemetry dashboard")
     parser.add_argument("--dashboard-output", help="Output file for HTML dashboard")
-    parser.add_argument("--fallback-provider", help="Override fallback provider (codex, kimi, anthropic, pi)")
+    parser.add_argument("--fallback-engine", help="Override fallback engine (codex, kimi, anthropic, pi)")
+    parser.add_argument("--fallback-provider", dest="fallback_provider_legacy", help="Deprecated alias for --fallback-engine")
     parser.add_argument("--fallback-model", help="Override fallback model")
+    parser.add_argument("--fallback-pi-provider", help="Provider for pi fallback engine (e.g., kimi-coding, openai)")
     parser.add_argument("--last", action="store_true", help="Re-run the previous task from history")
     parser.add_argument("--quick", "-q", action="store_true", help="Quick mode: suppress extra output")
     parser.add_argument("--cost", action="store_true", help="Show estimated cost/savings after run")
@@ -981,6 +1016,9 @@ def main() -> int:
     parser.add_argument("--timeout-override", type=int, default=0, help="Override computed timeout (seconds)")
     parser.add_argument("--health", action="store_true", help="Quick health check and exit")
     args = parser.parse_args()
+    fallback_engine_override = args.fallback_engine or args.fallback_provider_legacy
+    if args.fallback_provider_legacy and not args.fallback_engine and not args.quick:
+        print("warning: --fallback-provider is deprecated for engine selection; use --fallback-engine instead.", flush=True)
 
     task = args.task_positional or args.task
 
@@ -1117,12 +1155,12 @@ def main() -> int:
                 print("error: parallel batch module not available. Install requirements or use sequential batch mode.", flush=True)
                 return 2
         else:
-            return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_provider_override=args.fallback_provider, fallback_model_override=args.fallback_model)
+            return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_engine_override=fallback_engine_override, fallback_provider_override=args.fallback_provider_legacy, fallback_model_override=args.fallback_model, fallback_pi_provider_override=args.fallback_pi_provider)
 
     save_task_to_history(repo_root, task)
 
     use_cache = not args.no_cache
-    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick, interactive=args.interactive, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_provider_override=args.fallback_provider, fallback_model_override=args.fallback_model)
+    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick, interactive=args.interactive, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_engine_override=fallback_engine_override, fallback_provider_override=args.fallback_provider_legacy, fallback_model_override=args.fallback_model, fallback_pi_provider_override=args.fallback_pi_provider)
 
     if rc == 0 and not args.quick and not args.dry_run:
         print(f"\n✅ Task completed via Devin wrapper. Run 'dd --stats' for telemetry.", flush=True)
