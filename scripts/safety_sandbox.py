@@ -35,6 +35,42 @@ class SafetySandbox:
         r'\bformat\s+(disk|drive|partition)\b',  # format disk/drive/partition
         r'\bwipe\s+(disk|drive|partition|data)\b',  # wipe disk/drive/partition/data
         r'\bdestroy\s+(database|volume|container|pod)\b',  # destroy database/volume/container/pod
+        r'\bshutdown\b',           # shutdown command
+        r'\breboot\b',             # reboot command
+        r'\bhalt\b',               # halt command
+        r'\bpoweroff\b',           # poweroff command
+        r'\b:>.*\bconf\b',         # truncate config files
+        r'\becho\s+.*>\s*/dev/',   # writing to device files
+        r'\bdd\s+if=.*\bof=/dev/', # dd to device
+    ]
+    
+    # Security-sensitive patterns
+    SECURITY_PATTERNS = [
+        r'\bchmod\s+777\b',        # overly permissive permissions
+        r'\bchmod\s+-R\s+777\b',   # recursive overly permissive permissions
+        r'\bchown\s+.*\broot\b',   # changing ownership to root
+        r'\bsudo\s+.*\bchmod\b',   # sudo with permission changes
+        r'\bexport\s+.*\bPASS\b',  # exporting passwords
+        r'\becho\s+.*\bPASS\b',    # echoing passwords
+        r'\bprint\s+.*\bPASS\b',   # printing passwords
+        r'\blog\s+.*\bPASS\b',     # logging passwords
+        r'\bPOST\s+.*\bapi\b.*\bkey\b',  # posting API keys
+        r'\bcurl\s+.*\bpassword\b', # curl with password
+        r'\bwget\s+.*\bpassword\b', # wget with password
+    ]
+    
+    # Data exfiltration patterns
+    EXFILTRATION_PATTERNS = [
+        r'\bscp\s+.*\b@.*\b:',     # scp to remote
+        r'\brsync\s+.*\b@.*\b:',   # rsync to remote
+        r'\bftp\b',                # ftp command
+        r'\btftp\b',               # tftp command
+        r'\bnc\s+.*\b-l\b',       # netcat listener
+        r'\bnetcat\s+.*\b-l\b',   # netcat listener
+        r'\bsocat\s+.*\bLISTEN\b', # socat listener
+        r'\bpython\s+.*\bsocket\b', # python socket
+        r'\bncat\s+.*\b-l\b',     # ncat listener
+        r'\btelnet\b',             # telnet command
     ]
     
     # Sensitive file patterns
@@ -61,9 +97,26 @@ class SafetySandbox:
         """Check if task contains dangerous patterns."""
         task_lower = task.lower()
         
+        # Check destructive patterns
         for pattern in self.DANGEROUS_PATTERNS:
             if re.search(pattern, task_lower):
                 message = f"Task contains potentially dangerous pattern: {pattern}"
+                if self.strict_mode:
+                    return SafetyCheckResult(False, message, "error")
+                return SafetyCheckResult(False, message, "warning")
+        
+        # Check security patterns
+        for pattern in self.SECURITY_PATTERNS:
+            if re.search(pattern, task_lower):
+                message = f"Task contains security-sensitive pattern: {pattern}"
+                if self.strict_mode:
+                    return SafetyCheckResult(False, message, "error")
+                return SafetyCheckResult(False, message, "warning")
+        
+        # Check exfiltration patterns
+        for pattern in self.EXFILTRATION_PATTERNS:
+            if re.search(pattern, task_lower):
+                message = f"Task contains potential data exfiltration pattern: {pattern}"
                 if self.strict_mode:
                     return SafetyCheckResult(False, message, "error")
                 return SafetyCheckResult(False, message, "warning")
@@ -187,6 +240,114 @@ class SafetySandbox:
         except (OSError, AttributeError):
             return SafetyCheckResult(True, "Could not check disk space")
     
+    def check_repository_integrity(self) -> SafetyCheckResult:
+        """Check if git repository has integrity issues."""
+        if not (self.workspace / '.git').exists():
+            return SafetyCheckResult(True, "Not a git repository, skipping integrity check")
+        
+        try:
+            # Check for git errors
+            result = subprocess.run(
+                ['git', 'fsck', '--no-full'],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode != 0:
+                if self.strict_mode:
+                    return SafetyCheckResult(False, f"Git repository has integrity issues: {result.stderr[:100]}", "error")
+                return SafetyCheckResult(False, f"Git repository has integrity issues: {result.stderr[:100]}", "warning")
+            
+            # Check for large files that might cause issues
+            result = subprocess.run(
+                ['git', 'rev-list', '--objects', '--all'],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        size = len(parts[1])  # Approximate size check
+                        if size > 10000000:  # 10MB threshold
+                            if self.strict_mode:
+                                return SafetyCheckResult(False, f"Repository contains very large objects that may cause performance issues", "error")
+                            return SafetyCheckResult(False, f"Repository contains very large objects that may cause performance issues", "warning")
+            
+            return SafetyCheckResult(True, "Git repository integrity is good")
+            
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return SafetyCheckResult(True, "Git integrity check failed, skipping")
+    
+    def check_network_operations(self, task: str) -> SafetyCheckResult:
+        """Check if task involves suspicious network operations."""
+        task_lower = task.lower()
+        
+        # Check for external network access patterns
+        network_patterns = [
+            r'\bdownload\s+from\s+http',
+            r'\bcurl\s+.*\bhttp',
+            r'\bwget\s+.*\bhttp',
+            r'\bfetch\s+.*\bhttp',
+            r'\brequest\s+.*\bhttp',
+        ]
+        
+        external_access = False
+        for pattern in network_patterns:
+            if re.search(pattern, task_lower):
+                external_access = True
+                break
+        
+        if external_access:
+            # Check if URLs use HTTPS
+            if 'https://' not in task_lower and 'http://' in task_lower:
+                message = "Task uses insecure HTTP for network operations"
+                if self.strict_mode:
+                    return SafetyCheckResult(False, message, "error")
+                return SafetyCheckResult(False, message, "warning")
+            
+            # Check for suspicious domains
+            suspicious_domains = [
+                'pastebin.com', 'trello.com', 'gist.github.com', 
+                'transfer.sh', 'file.io'
+            ]
+            
+            for domain in suspicious_domains:
+                if domain in task_lower:
+                    message = f"Task references potentially suspicious domain: {domain}"
+                    if self.strict_mode:
+                        return SafetyCheckResult(False, message, "error")
+                    return SafetyCheckResult(False, message, "warning")
+        
+        return SafetyCheckResult(True, "Network operations appear safe")
+    
+    def check_file_operation_scope(self, task: str) -> SafetyCheckResult:
+        """Check if file operations have appropriate scope."""
+        task_lower = task.lower()
+        
+        # Check for overly broad file operations
+        broad_patterns = [
+            r'\bfind\s+/\s+',           # find from root
+            r'\bchmod\s+-R\s+.*\/\s*',  # recursive chmod from root
+            r'\bchown\s+-R\s+.*\/\s*',  # recursive chown from root
+            r'\brm\s+-rf\s+\/\s*',      # rm -rf from root
+            r'\bsed\s+-i\s+.*\/\s*',    # sed in-place on root files
+        ]
+        
+        for pattern in broad_patterns:
+            if re.search(pattern, task_lower):
+                message = f"Task uses overly broad file operation pattern: {pattern}"
+                if self.strict_mode:
+                    return SafetyCheckResult(False, message, "error")
+                return SafetyCheckResult(False, message, "warning")
+        
+        return SafetyCheckResult(True, "File operation scope is appropriate")
+    
     def run_all_checks(self, task: str = "") -> Dict[str, Any]:
         """Run all safety checks and return summary."""
         self.results = []
@@ -197,9 +358,14 @@ class SafetySandbox:
         # Run task content check if task provided
         if task:
             self.results.append(self.check_task_content(task))
+            self.results.append(self.check_network_operations(task))
+            self.results.append(self.check_file_operation_scope(task))
         
         # Run git state check
         self.results.append(self.check_git_state())
+        
+        # Run repository integrity check
+        self.results.append(self.check_repository_integrity())
         
         # Run sensitive files check
         self.results.append(self.check_sensitive_files())

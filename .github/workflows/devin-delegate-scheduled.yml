@@ -1,0 +1,161 @@
+name: Devin Delegate Scheduled Tasks
+
+on:
+  schedule:
+    # Run daily at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      run_type:
+        description: 'Type of run (daily, weekly, custom)'
+        required: false
+        type: choice
+        options:
+          - daily
+          - weekly
+          - custom
+
+env:
+  DEVIN_DELEGATE_VERSION: '0.2.4'
+
+jobs:
+  scheduled-review:
+    name: Scheduled Code Review
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        if [ -f "./setup.sh" ]; then
+          chmod +x ./setup.sh
+          ./setup.sh || echo "Setup script failed, continuing..."
+        fi
+    
+    - name: Configure authentication
+      env:
+        DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+      run: |
+        if [ -n "$DEVIN_API_KEY" ]; then
+          echo "Configuring Devin authentication..."
+        fi
+    
+    - name: Run daily code review
+      run: |
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate \
+            --task "Review recent changes for code quality, security issues, and best practices" \
+            --task-class review \
+            --workspace "$GITHUB_WORKSPACE" \
+            --quick \
+            --safety-check || {
+            echo "Daily review failed"
+            exit 1
+          }
+        else
+          echo "devin-delegate command not found"
+          exit 1
+        fi
+    
+    - name: Check for security issues
+      run: |
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate \
+            --task "Perform security audit on the codebase" \
+            --task-class review \
+            --template security-audit \
+            --workspace "$GITHUB_WORKSPACE" \
+            --strict-safety \
+            --quick || {
+            echo "Security audit failed"
+            exit 1
+          }
+        fi
+    
+    - name: Generate and upload dashboard
+      if: always()
+      run: |
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate --dashboard-html --output devin-dashboard.html
+        fi
+    
+    - name: Upload dashboard
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: scheduled-dashboard
+        path: devin-dashboard.html
+        retention-days: 90
+    
+    - name: Cache cleanup
+      if: always()
+      run: |
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate --cache-cleanup
+        fi
+    
+    - name: Create summary report
+      if: always()
+      run: |
+        echo "## Devin Delegate Scheduled Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Run Time**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ env.DEVIN_DELEGATE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        
+        if command -v devin-delegate &> /dev/null; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cache Statistics" >> $GITHUB_STEP_SUMMARY
+          devin-delegate --cache-stats >> $GITHUB_STEP_SUMMARY || true
+        fi
+
+  weekly-analysis:
+    name: Weekly Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.run_type == 'weekly'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        if [ -f "./setup.sh" ]; then
+          chmod +x ./setup.sh
+          ./setup.sh || echo "Setup script failed, continuing..."
+        fi
+    
+    - name: Generate weekly dashboard
+      run: |
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate --dashboard-html --dashboard-output weekly-report.html --days 7
+        fi
+    
+    - name: Run comprehensive analysis
+      run: |
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate \
+            --task "Analyze the codebase for technical debt, refactoring opportunities, and architectural improvements" \
+            --task-class research \
+            --workspace "$GITHUB_WORKSPACE" \
+            --quick || {
+            echo "Analysis failed"
+            exit 1
+          }
+        fi
+    
+    - name: Upload weekly report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: weekly-report
+        path: weekly-report.html
+        retention-days: 90

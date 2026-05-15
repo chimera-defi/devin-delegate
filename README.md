@@ -6,11 +6,22 @@ A structured delegation skill for routing bounded coding and research tasks thro
 
 Devin Delegate provides a robust interface for delegating tasks to Devin while maintaining guardrails, tracking performance, and providing automatic fallback to alternative providers when Devin is unavailable or encounters errors.
 
+## Why Devin Delegate?
+
+**Cost-Effective Intelligence Routing**: Devin's monthly plan costs $200/month. Devin Delegate maximizes your ROI by:
+- **Primary Path**: Use Devin for complex tasks requiring its full browser/shell sandbox capabilities
+- **Smart Fallback**: Automatically route to Codex GPT-5.5 when Devin times out or is unavailable
+- **Massive Savings**: Codex GPT-5.5 provides high-quality fallback at a fraction of Devin's cost
+- **Zero Downtime**: Your workflow continues even when Devin has hiccups
+
+**Production-Grade Reliability**: Built for teams who need consistent, predictable AI delegation with enterprise-grade telemetry and safety checks.
+
 ## Features
 
 - **Structured Envelopes**: Tasks are packaged with explicit goals, scope, constraints, and acceptance criteria
 - **Workspace Context**: Automatic injection of repository context for better task execution
-- **Smart Fallback**: Automatic routing to Codex or Pi when Devin fails (timeout, auth errors, unavailability)
+- **Smart Fallback**: Automatic routing to Codex GPT-5.5 when Devin fails (timeout, auth errors, unavailability)
+- **Cost Optimization**: Fallback to Codex GPT-5.5 at significant cost savings vs Devin's $200/mo plan
 - **Telemetry**: Comprehensive tracking of calls, latency, fallback rates, and token savings
 - **Task Templates**: Pre-built templates for common task patterns
 - **Batch Mode**: Process multiple tasks sequentially
@@ -250,7 +261,7 @@ The skill includes bypass detection to ensure tasks go through the proper delega
 | Token Budget     | 1200–2000 output tokens | 500–1200 output tokens      |
 | Base Timeout     | 300s (max 600s)         | 120s (max 600s)             |
 | Best For         | Implementation, debugging, browser/UI | Search, summarize, lightweight drafting |
-| Fallback         | Codex o3-mini           | Codex gpt-5.3               |
+| Fallback         | Codex GPT-5.5 (cost-optimized)           | Codex gpt-5.3               |
 
 Use `devin-delegate` when you need browser, shell sandbox, or full implementation.
 Use `kimi-delegate` for cheap bounded research tasks.

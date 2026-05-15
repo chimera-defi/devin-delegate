@@ -1,5 +1,5 @@
 {
-  "version": "0.2.2",
+  "version": "0.2.4",
   "provider": "devin",
   "model": "devin-default",
   "timeout_seconds": 300,
@@ -7,7 +7,30 @@
   "max_retries": 1,
   "fallback_engine": "codex",
   "fallback_provider": "openai",
-  "fallback_model": "o3-mini",
+  "fallback_model": "gpt-5.5",
+  "fallback_providers": {
+    "codex": {
+      "enabled": true,
+      "default_model": "gpt-5.5",
+      "priority": 1
+    },
+    "kimi": {
+      "enabled": true,
+      "default_model": "kimi-default",
+      "priority": 2
+    },
+    "anthropic": {
+      "enabled": true,
+      "default_model": "claude-3.5-sonnet",
+      "priority": 3
+    },
+    "pi": {
+      "enabled": true,
+      "default_model": "gpt-5.3-codex",
+      "priority": 4
+    }
+  },
+  "fallback_strategy": "priority",
   "max_timeout_seconds": 600,
   "large_repo_threshold_files": 10000,
   "large_repo_threshold_mb": 500,

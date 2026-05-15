@@ -1,7 +1,7 @@
 ---
 name: devin-delegate
 preamble-tier: 4
-version: 0.2.2
+version: 0.2.4
 description: |
   Route bounded coding and research tasks through Devin (Cognition AI) as a sub-agent
   with structured envelopes, workspace context, fallback routing, and telemetry.
@@ -59,8 +59,22 @@ Use this skill when you want a stronger parent agent to plan and guardrails-chec
 |---|---|
 | **Timeout** | Retry once with doubled timeout, then fallback. |
 | **Auth / Session expired** | Print resume steps. Exit code 126. No blind fallback. |
-| **Devin unavailable** | Immediate fallback to Codex/Pi. |
+| **Devin unavailable** | Immediate fallback to Codex/Pi/Kimi/Anthropic. |
 | **Schema invalid** | Retry once, then fallback. |
+
+## Fallback Providers
+
+Multiple fallback providers are supported with priority-based routing:
+
+- **Codex** (priority 1): GPT-5.5, GPT-5.3-codex, o3-mini
+- **Kimi** (priority 2): kimi-default, kimi-pro  
+- **Anthropic** (priority 3): claude-3.5-sonnet, claude-3-opus
+- **Pi** (priority 4): gpt-5.3-codex
+
+Override fallback provider:
+```bash
+devin-delegate --fallback-provider kimi --fallback-model kimi-pro "task"
+```
 
 ## Environment Check
 
@@ -137,7 +151,7 @@ Both skills share the same envelope/fallback/telemetry architecture. Choose base
 | **Token budget** | 1200–2000 output tokens | 500–1200 output tokens |
 | **Base timeout** | 300s (max 600s w/ scaling) | 120s (max 600s w/ scaling) |
 | **Best for** | Implementation, debugging, browser/UI tasks | Search, summarize, lightweight drafting |
-| **Fallback** | Codex o3-mini | Codex gpt-5.3 |
+| **Fallback** | Codex GPT-5.5 | Codex gpt-5.3 |
 
 Use `kimi-delegate` (`/kimi-delegate`) for cheap bounded research. Use `devin-delegate` when you need browser, shell sandbox, or full implementation.
 

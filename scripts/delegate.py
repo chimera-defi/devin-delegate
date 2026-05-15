@@ -45,6 +45,19 @@ except ImportError:
     def run_safety_checks(*args, **kwargs):
         return True, "Safety checks unavailable"
 
+# Import result cache utilities
+try:
+    from result_cache import ResultCache
+except ImportError:
+    # Fallback if result_cache module not available
+    class ResultCache:
+        def __init__(self, *args, **kwargs):
+            pass
+        def get(self, *args, **kwargs):
+            return None
+        def set(self, *args, **kwargs):
+            pass
+
 
 def script_root() -> Path:
     return Path(__file__).resolve().parent
@@ -537,6 +550,10 @@ def run_delegate(
     interactive: bool = False,
     safety_check: bool = False,
     strict_safety: bool = False,
+    use_cache: bool = True,
+    cache_ttl: int = 86400,
+    fallback_provider_override: str | None = None,
+    fallback_model_override: str | None = None,
 ) -> int:
     if not dry_run:
         # Run safety checks if requested
@@ -585,6 +602,23 @@ def run_delegate(
                     flush=True,
                 )
                 return 126
+
+    # Check cache if enabled and not in dry-run mode
+    context_content = None
+    if context_file and Path(context_file).exists():
+        try:
+            context_content = Path(context_file).read_text(encoding="utf-8")
+        except OSError:
+            pass
+    
+    if use_cache and not dry_run and not print_envelope:
+        cache = ResultCache(ttl_seconds=cache_ttl)
+        cached_result = cache.get(task, task_class, context_content)
+        if cached_result:
+            if not quick:
+                print("🎯 Cache hit! Using cached result.", flush=True)
+            print(cached_result.get("result", ""), flush=True)
+            return 0
 
     try:
         envelope = build_envelope(task, context_file)
@@ -716,9 +750,9 @@ def run_delegate(
                 "--envelope-file",
                 str(envelope_path),
                 "--fallback-engine",
-                str(config.get("fallback_engine", "codex")),
+                str(fallback_provider_override if fallback_provider_override else config.get("fallback_engine", "codex")),
                 "--model",
-                str(config.get("fallback_model", "gpt-5.3-codex")),
+                str(fallback_model_override if fallback_model_override else config.get("fallback_model", "gpt-5.5")),
                 "--provider",
                 str(config.get("fallback_provider", "openai")),
                 "--timeout",
@@ -822,6 +856,29 @@ def run_delegate(
     print(out.rstrip())
     if show_cost:
         print(f"\n{format_cost_display(delegate_cost, parent_cost)}", flush=True)
+    
+    # Store result in cache if enabled and task was successful
+    if use_cache and rc == 0 and not dry_run:
+        try:
+            cache = ResultCache(ttl_seconds=cache_ttl)
+            cache.set(
+                task, 
+                out.rstrip(), 
+                task_class, 
+                context_content,
+                metadata={
+                    "model": model if not fallback_used else f"fallback:{config.get('fallback_model')}",
+                    "latency_ms": round(latency_ms, 2),
+                    "cost_usd": round(delegate_cost, 6),
+                    "fallback_used": fallback_used
+                }
+            )
+            if not quick:
+                print("💾 Result cached for future use", flush=True)
+        except Exception:
+            # Fail silently if cache storage fails
+            pass
+    
     return 0
 
 
@@ -838,6 +895,10 @@ def run_batch(
     interactive: bool = False,
     safety_check: bool = False,
     strict_safety: bool = False,
+    use_cache: bool = True,
+    cache_ttl: int = 86400,
+    fallback_provider_override: str | None = None,
+    fallback_model_override: str | None = None,
 ) -> int:
     path = Path(batch_file)
     if not path.exists():
@@ -871,7 +932,7 @@ def run_batch(
         ws = Path(line_workspace) if line_workspace else workspace
 
         print(f"\n{'='*60}\n[batch {i}/{len(lines)}] {task}\n{'='*60}", flush=True)
-        rc = run_delegate(task, line_context, line_class, dry_run, False, config, routing, repo_root, workspace=ws, show_cost=False, timeout_override=None, quick=quick, interactive=False, safety_check=safety_check, strict_safety=strict_safety)
+        rc = run_delegate(task, line_context, line_class, dry_run, False, config, routing, repo_root, workspace=ws, show_cost=False, timeout_override=None, quick=quick, interactive=False, safety_check=safety_check, strict_safety=strict_safety, use_cache=use_cache, cache_ttl=cache_ttl, fallback_provider_override=fallback_provider_override, fallback_model_override=fallback_model_override)
         results.append({"line": i, "task": task, "rc": rc})
         if rc != 0:
             overall_rc = rc
@@ -895,6 +956,19 @@ def main() -> int:
     parser.add_argument("--safety-check", action="store_true", help="Run safety sandbox checks before delegation")
     parser.add_argument("--strict-safety", action="store_true", help="Strict mode: safety warnings are treated as errors")
     parser.add_argument("--batch", default="", help="Path to JSONL file of tasks to delegate in batch")
+    parser.add_argument("--parallel", action="store_true", help="Enable parallel batch processing with --batch")
+    parser.add_argument("--max-workers", type=int, default=4, help="Maximum number of parallel workers (default: 4)")
+    parser.add_argument("--batch-timeout", type=int, default=3600, help="Overall timeout for parallel batch in seconds (default: 3600)")
+    parser.add_argument("--no-cache", action="store_true", help="Disable result caching")
+    parser.add_argument("--cache-ttl", type=int, default=86400, help="Cache TTL in seconds (default: 86400)")
+    parser.add_argument("--cache-stats", action="store_true", help="Show cache statistics")
+    parser.add_argument("--cache-cleanup", action="store_true", help="Clean expired cache entries")
+    parser.add_argument("--cache-clear", action="store_true", help="Clear all cache entries")
+    parser.add_argument("--dashboard", action="store_true", help="Show telemetry dashboard")
+    parser.add_argument("--dashboard-html", action="store_true", help="Generate HTML telemetry dashboard")
+    parser.add_argument("--dashboard-output", help="Output file for HTML dashboard")
+    parser.add_argument("--fallback-provider", help="Override fallback provider (codex, kimi, anthropic, pi)")
+    parser.add_argument("--fallback-model", help="Override fallback model")
     parser.add_argument("--last", action="store_true", help="Re-run the previous task from history")
     parser.add_argument("--quick", "-q", action="store_true", help="Quick mode: suppress extra output")
     parser.add_argument("--cost", action="store_true", help="Show estimated cost/savings after run")
@@ -939,6 +1013,43 @@ def main() -> int:
         else:
             print(f"❌ Devin unhealthy: {reason}")
             return 1
+
+    # Handle cache management commands
+    if args.cache_stats or args.cache_cleanup or args.cache_clear:
+        cache = ResultCache(ttl_seconds=args.cache_ttl)
+        if args.cache_stats:
+            stats = cache.get_stats()
+            print("📊 Cache Statistics")
+            print(f"   Total entries:  {stats['total_entries']}")
+            print(f"   Valid entries:  {stats['valid_entries']}")
+            print(f"   Expired entries: {stats['expired_entries']}")
+            print(f"   Total size:     {stats['total_size_mb']} MB")
+            print(f"   Cache directory: {stats['cache_dir']}")
+            print(f"   TTL:            {stats['ttl_seconds']}s")
+            return 0
+        elif args.cache_cleanup:
+            removed = cache.cleanup_expired()
+            print(f"🧹 Removed {removed} expired cache entries")
+            return 0
+        elif args.cache_clear:
+            removed = cache.invalidate()
+            print(f"🗑️  Cleared {removed} cache entries")
+            return 0
+
+    # Handle dashboard commands
+    if args.dashboard or args.dashboard_html:
+        try:
+            from telemetry_dashboard import TelemetryDashboard
+            dashboard = TelemetryDashboard(repo_root)
+            if args.dashboard_html:
+                output_file = Path(args.dashboard_output) if args.dashboard_output else None
+                dashboard.render_html_dashboard(output_file=output_file)
+            else:
+                print(dashboard.render_cli_dashboard())
+            return 0
+        except ImportError:
+            print("error: telemetry dashboard module not available", flush=True)
+            return 2
 
     if args.templates:
         list_templates()
@@ -992,11 +1103,26 @@ def main() -> int:
         return 2
 
     if args.batch:
-        return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False, safety_check=args.safety_check, strict_safety=args.strict_safety)
+        use_cache = not args.no_cache
+        if args.parallel:
+            try:
+                from parallel_batch import run_parallel_batch
+                return run_parallel_batch(
+                    args.batch, args.context_file, args.task_class, config, routing, repo_root,
+                    workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False,
+                    safety_check=args.safety_check, strict_safety=args.strict_safety,
+                    max_workers=args.max_workers, timeout_seconds=args.batch_timeout
+                )
+            except ImportError:
+                print("error: parallel batch module not available. Install requirements or use sequential batch mode.", flush=True)
+                return 2
+        else:
+            return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_provider_override=args.fallback_provider, fallback_model_override=args.fallback_model)
 
     save_task_to_history(repo_root, task)
 
-    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick, interactive=args.interactive, safety_check=args.safety_check, strict_safety=args.strict_safety)
+    use_cache = not args.no_cache
+    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick, interactive=args.interactive, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_provider_override=args.fallback_provider, fallback_model_override=args.fallback_model)
 
     if rc == 0 and not args.quick and not args.dry_run:
         print(f"\n✅ Task completed via Devin wrapper. Run 'dd --stats' for telemetry.", flush=True)

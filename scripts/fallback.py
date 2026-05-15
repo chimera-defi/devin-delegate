@@ -29,11 +29,25 @@ def run_pi(prompt: str, provider: str, model: str, timeout: int) -> subprocess.C
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
 
 
+def run_kimi(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
+    """Run Kimi as a fallback provider."""
+    cmd = ["kimi", "exec", "--model", model]
+    cmd += [prompt]
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+
+
+def run_anthropic(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
+    """Run Anthropic Claude as a fallback provider."""
+    cmd = ["anthropic", "complete", "--model", model]
+    cmd += [prompt]
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--envelope-file", required=True)
-    parser.add_argument("--fallback-engine", default="codex", choices=["codex", "pi"])
-    parser.add_argument("--model", default="gpt-5.3-codex")
+    parser.add_argument("--fallback-engine", default="codex", choices=["codex", "pi", "kimi", "anthropic"])
+    parser.add_argument("--model", default="gpt-5.5")
     parser.add_argument("--provider", default="openai")
     parser.add_argument("--timeout", type=int, default=300)
     args = parser.parse_args()
@@ -59,11 +73,24 @@ def main() -> int:
             sys.stderr.write("fallback error: `codex` binary not found\n")
             return 127
         proc = run_codex(prompt, args.model, args.timeout)
-    else:
+    elif args.fallback_engine == "pi":
         if shutil.which("pi") is None:
             sys.stderr.write("fallback error: `pi` binary not found\n")
             return 127
         proc = run_pi(prompt, args.provider, args.model, args.timeout)
+    elif args.fallback_engine == "kimi":
+        if shutil.which("kimi") is None:
+            sys.stderr.write("fallback error: `kimi` binary not found\n")
+            return 127
+        proc = run_kimi(prompt, args.model, args.timeout)
+    elif args.fallback_engine == "anthropic":
+        if shutil.which("anthropic") is None:
+            sys.stderr.write("fallback error: `anthropic` binary not found\n")
+            return 127
+        proc = run_anthropic(prompt, args.model, args.timeout)
+    else:
+        sys.stderr.write(f"fallback error: unknown engine {args.fallback_engine}\n")
+        return 2
 
     if proc.returncode != 0:
         sys.stderr.write(proc.stderr)

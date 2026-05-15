@@ -1,0 +1,175 @@
+name: Devin Delegate CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task to delegate to Devin'
+        required: true
+        type: string
+      task_class:
+        description: 'Task class (research, implement, debug, review, browser)'
+        required: false
+        type: string
+        default: 'implement'
+
+env:
+  DEVIN_DELEGATE_VERSION: '0.2.4'
+
+jobs:
+  devin-delegate:
+    name: Devin Delegate Task
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Install dependencies
+      run: |
+        # Install Python dependencies
+        python3 -m pip install --upgrade pip
+        
+        # Install devin-delegate (assuming it's available via setup script)
+        if [ -f "./setup.sh" ]; then
+          chmod +x ./setup.sh
+          ./setup.sh || echo "Setup script failed, continuing..."
+        fi
+        
+        # Check if devin CLI is available
+        if ! command -v devin &> /dev/null; then
+          echo "Warning: devin CLI not found. Install from https://docs.devin.ai"
+          exit 1
+        fi
+        
+        # Check if codex CLI is available (for fallback)
+        if ! command -v codex &> /dev/null; then
+          echo "Warning: codex CLI not found. Fallback may not work"
+        fi
+    
+    - name: Configure Devin authentication
+      env:
+        DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+      run: |
+        if [ -n "$DEVIN_API_KEY" ]; then
+          echo "Configuring Devin authentication..."
+          # Add your auth configuration here
+          # devin auth login --api-key "$DEVIN_API_KEY"
+        else
+          echo "No DEVIN_API_KEY found. Using existing auth configuration."
+        fi
+    
+    - name: Run environment check
+      run: |
+        if [ -f "./scripts/devin-delegate" ] || command -v devin-delegate &> /dev/null; then
+          devin-delegate --check || echo "Environment check failed"
+        else
+          echo "devin-delegate command not found, skipping check"
+        fi
+    
+    - name: Execute Devin Delegate
+      env:
+        TASK: ${{ github.event.inputs.task || 'Run code quality checks and suggest improvements' }}
+        TASK_CLASS: ${{ github.event.inputs.task_class || 'review' }}
+      run: |
+        echo "Delegating task to Devin: $TASK"
+        echo "Task class: $TASK_CLASS"
+        
+        # Run devin-delegate with the specified task
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate \
+            --task "$TASK" \
+            --task-class "$TASK_CLASS" \
+            --workspace "$GITHUB_WORKSPACE" \
+            --quick \
+            --no-cache || {
+            echo "Devin delegate failed with exit code $?"
+            exit 1
+          }
+        else
+          echo "devin-delegate command not found"
+          exit 1
+        fi
+    
+    - name: Generate telemetry dashboard
+      if: always()
+      run: |
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate --dashboard || echo "Dashboard generation failed"
+        fi
+    
+    - name: Upload telemetry data
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: devin-delegate-telemetry
+        path: |
+          artifacts/devin-delegate/
+          devin-delegate-dashboard.html
+        retention-days: 30
+    
+    - name: Upload results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: devin-results
+        path: |
+          *.md
+          devin-output.txt
+        retention-days: 7
+
+  batch-processing:
+    name: Batch Processing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        if [ -f "./setup.sh" ]; then
+          chmod +x ./setup.sh
+          ./setup.sh || echo "Setup script failed, continuing..."
+        fi
+    
+    - name: Create batch tasks file
+      run: |
+        cat > batch-tasks.jsonl << EOF
+        {"task": "Review code for potential security vulnerabilities", "task_class": "review", "workspace": "$GITHUB_WORKSPACE"}
+        {"task": "Check for code quality issues and suggest improvements", "task_class": "review", "workspace": "$GITHUB_WORKSPACE"}
+        {"task": "Verify documentation is up to date", "task_class": "research", "workspace": "$GITHUB_WORKSPACE"}
+        EOF
+    
+    - name: Run batch processing
+      run: |
+        if command -v devin-delegate &> /dev/null; then
+          devin-delegate \
+            --batch batch-tasks.jsonl \
+            --parallel \
+            --max-workers 2 \
+            --quick \
+            --no-cache || {
+            echo "Batch processing failed"
+            exit 1
+          }
+        else
+          echo "devin-delegate command not found"
+          exit 1
+        fi
+    
+    - name: Upload batch results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: batch-results
+        path: artifacts/devin-delegate/
+        retention-days: 7

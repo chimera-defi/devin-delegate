@@ -8,13 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive README.md documentation
-- CHANGELOG.md for version tracking
-- Interactive mode flag (--interactive) implementation
-- Basic test suite for core functions
-- Additional task templates: migrate-deps, security-audit, perf-optimize, add-tests
-- Improved cost estimation with actual Devin pricing
-- Safety sandbox for pre-delegation checks
+- Parallel batch processing with configurable worker count (`--parallel`, `--max-workers`)
+- Result caching system with TTL support (`--no-cache`, `--cache-ttl`, `--cache-stats`, `--cache-cleanup`, `--cache-clear`)
+- Telemetry dashboard with both CLI and HTML visualization (`--dashboard`, `--dashboard-html`)
+- Additional fallback providers: Kimi, Anthropic Claude (`--fallback-provider`, `--fallback-model`)
+- GitHub Actions integration templates with CI/CD workflows
+- MCP (Model Context Protocol) server for tool integration
+- Enhanced safety patterns: security-sensitive operations, data exfiltration detection, network operation checks
+- Repository integrity checks and file operation scope validation
+- Pricing configuration for new fallback providers (Kimi, Anthropic)
+- Fallback provider priority system in configuration
+
+### Changed
+- **BREAKING**: Updated fallback.py to support multiple providers (codex, kimi, anthropic, pi)
+- Enhanced safety sandbox with additional pattern detection
+- Updated configuration format to include fallback provider priorities
+- Improved error handling and validation for fallback providers
+- Enhanced telemetry dashboard with interactive charts and daily breakdowns
+
+### Fixed
+- Updated version to 0.2.4 across all configuration files
+- Improved documentation for new features and capabilities
+
+## [0.2.3] - 2026-05-14
+
+### Changed
+- **BREAKING**: Updated default fallback model from Codex o3-mini to Codex GPT-5.5 for cost optimization
+- Added GPT-5.5 pricing configuration to pricing.json with competitive rates
+- Updated fallback.py default model to GPT-5.5
+- Enhanced README with marketing material highlighting cost savings vs Devin's $200/mo plan
+- Added "Why Devin Delegate?" section with ROI-focused messaging
+- Updated all documentation to reflect GPT-5.5 as the primary fallback
+
+### Fixed
+- Updated version numbers across SKILL.md and config files for consistency
 
 ## [0.2.2] - 2026-05-13
 
