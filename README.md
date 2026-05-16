@@ -213,9 +213,10 @@ Each task is packaged into a structured envelope:
 
 | Failure Type        | Behavior                              |
 |---------------------|---------------------------------------|
+| Clarification request | Try Codex guidance first, then Claude guidance, before asking human |
 | Timeout             | Retry with doubled timeout, then fallback |
 | Auth / Session      | Show resume steps, no fallback        |
-| Devin Unavailable   | Immediate fallback to Codex/Pi        |
+| Devin Unavailable   | Fallback to selected engine (default Codex); if Codex fails, try Claude before human escalation |
 | Schema Invalid      | Retry once, then fallback             |
 
 ### Telemetry

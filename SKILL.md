@@ -50,8 +50,9 @@ Use this skill when you want a stronger parent agent to plan and guardrails-chec
 3. Auto-scale timeout by repo size (large/xlarge repos get 2x–3x timeout).
 4. Execute via `devin --print` with workspace context.
 5. Capture output, validate acceptance criteria.
-6. If Devin fails (timeout/unavailable/auth), route to Codex or Pi fallback.
-7. Record telemetry for every call.
+6. If Devin asks the human for clarification, run Codex guidance first; if Codex fails, run Claude guidance second; only then escalate to the human.
+7. If Devin fails (timeout/unavailable/auth), route to fallback providers.
+8. Record telemetry for every call.
 
 ## Error Handling
 
@@ -59,7 +60,8 @@ Use this skill when you want a stronger parent agent to plan and guardrails-chec
 |---|---|
 | **Timeout** | Retry once with doubled timeout, then fallback. |
 | **Auth / Session expired** | Print resume steps. Exit code 126. No blind fallback. |
-| **Devin unavailable** | Immediate fallback to Codex/Pi/Kimi/Anthropic. |
+| **Clarification request** | Try Codex guidance, then Claude guidance, before asking human. |
+| **Devin unavailable** | Fallback to selected engine (default Codex); if Codex fails, try Claude before human escalation. |
 | **Schema invalid** | Retry once, then fallback. |
 
 ## Fallback Providers

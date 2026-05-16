@@ -170,6 +170,124 @@ def classify_error(rc: int, stderr: str, schema_valid: bool) -> str:
     return "unknown"
 
 
+def output_needs_clarification(text: str) -> bool:
+    """Heuristic detection for model outputs that ask the human for missing context."""
+    if not text:
+        return False
+    lower = text.lower()
+    patterns = [
+        r"\bplease\b.{0,60}\b(clarify|provide|confirm|share)\b",
+        r"\b(could|can)\s+you\b",
+        r"\bneed(?:s)?\b.{0,60}\b(clarification|context|details|information|input)\b",
+        r"\bnot enough\b.{0,40}\b(context|information|details)\b",
+        r"\b(?:cannot|can't|can not)\b.{0,80}\b(without|until)\b",
+    ]
+    if "?" not in text and "clarif" not in lower:
+        return False
+    return any(re.search(p, lower) for p in patterns)
+
+
+def default_model_for_engine(config: dict[str, Any], engine: str, fallback_model: str) -> str:
+    providers = config.get("fallback_providers", {})
+    if isinstance(providers, dict):
+        provider_entry = providers.get(engine, {})
+        if isinstance(provider_entry, dict):
+            model = provider_entry.get("default_model")
+            if isinstance(model, str) and model.strip():
+                return model.strip()
+    defaults = {
+        "codex": "gpt-5.5",
+        "anthropic": "claude-3.5-sonnet",
+        "kimi": "kimi-default",
+        "pi": "gpt-5.3-codex",
+    }
+    return defaults.get(engine, fallback_model)
+
+
+def run_engine_prompt(
+    engine: str,
+    prompt: str,
+    model: str,
+    provider: str,
+    timeout: int,
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
+) -> tuple[int, str, str, float]:
+    if engine == "codex":
+        if shutil.which("codex") is None:
+            return 127, "", "fallback error: `codex` binary not found", 0.0
+        return call(["codex", "exec", "--model", model, prompt], timeout=timeout, cwd=cwd, env=env)
+    if engine == "anthropic":
+        if shutil.which("anthropic") is None:
+            return 127, "", "fallback error: `anthropic` binary not found", 0.0
+        return call(["anthropic", "complete", "--model", model, prompt], timeout=timeout, cwd=cwd, env=env)
+    if engine == "kimi":
+        if shutil.which("kimi") is None:
+            return 127, "", "fallback error: `kimi` binary not found", 0.0
+        return call(["kimi", "exec", "--model", model, prompt], timeout=timeout, cwd=cwd, env=env)
+    if engine == "pi":
+        if shutil.which("pi") is None:
+            return 127, "", "fallback error: `pi` binary not found", 0.0
+        return call(
+            ["pi", "--provider", provider, "--model", model, "--print", prompt],
+            timeout=timeout,
+            cwd=cwd,
+            env=env,
+        )
+    return 2, "", f"fallback error: unknown engine {engine}", 0.0
+
+
+def resolve_clarification_with_guidance(
+    config: dict[str, Any],
+    task: str,
+    envelope_text: str,
+    devin_output: str,
+    required_sections: list[str],
+    timeout_seconds: int,
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
+) -> tuple[bool, str, str, str, str, float, str]:
+    codex_model = default_model_for_engine(config, "codex", "gpt-5.5")
+    claude_model = default_model_for_engine(config, "anthropic", "claude-3.5-sonnet")
+    attempts = [
+        ("codex", codex_model, "openai"),
+        ("anthropic", claude_model, "anthropic"),
+    ]
+    prompt = (
+        "Devin asked for clarification instead of finishing.\n"
+        "Use the envelope and Devin output to complete the task now.\n"
+        "Do not ask the human follow-up questions.\n"
+        "If details are missing, make minimal safe assumptions and state them explicitly.\n"
+        "Return markdown with sections: Result, Evidence, Next steps.\n\n"
+        f"Original task: {task}\n\n"
+        "Envelope:\n"
+        f"{envelope_text}\n\n"
+        "Devin output that asked for clarification:\n"
+        f"{devin_output}\n"
+    )
+    total_latency = 0.0
+    errors: list[str] = []
+    for engine, model, provider in attempts:
+        rc, out, err, lat = run_engine_prompt(
+            engine,
+            prompt,
+            model,
+            provider,
+            timeout=max(timeout_seconds, 180),
+            cwd=cwd,
+            env=env,
+        )
+        total_latency += lat
+        if rc == 0 and output_is_valid(out, required_sections) and not output_needs_clarification(out):
+            return True, out, engine, model, provider, total_latency, ""
+        if rc == 0 and output_is_valid(out, required_sections):
+            errors.append(f"{engine}: returned another clarification request")
+        else:
+            snippet = (err or "unknown error").strip().replace("\n", " ")
+            errors.append(f"{engine}: rc={rc} ({snippet[:180]})")
+    return False, "", "", "", "", total_latency, " | ".join(errors)
+
+
 def load_templates() -> dict[str, dict]:
     tpl_path = skill_root() / "prompts" / "templates.json"
     if not tpl_path.exists():
@@ -658,6 +776,9 @@ def run_delegate(
         fallback_model_override=fallback_model_override,
         fallback_provider_override=fallback_pi_provider_override,
     )
+    effective_fallback_engine = fallback_engine
+    effective_fallback_model = fallback_model
+    effective_fallback_provider = fallback_provider
 
     repo_scale = estimate_repo_scale(repo_root)
     timeout_seconds = compute_timeout(base_timeout, task_class, config, routing, repo_scale, override=timeout_override)
@@ -746,7 +867,45 @@ def run_delegate(
             timeout_seconds = new_timeout
         retry_count += 1
 
-    if rc != 0 or not schema_valid:
+    if rc == 0 and schema_valid and output_needs_clarification(out):
+        if not quick:
+            print("devin-delegate: Devin requested clarification. Running codex, then Claude, for guidance before asking human...", flush=True)
+        guidance_ok, guidance_out, guidance_engine, guidance_model, guidance_provider, guidance_latency_ms, guidance_err = resolve_clarification_with_guidance(
+            config=config,
+            task=task,
+            envelope_text=envelope_text,
+            devin_output=out,
+            required_sections=required_sections,
+            timeout_seconds=timeout_seconds,
+            cwd=str(target_workspace),
+            env=env,
+        )
+        latency_ms += guidance_latency_ms
+        if guidance_latency_ms > 0:
+            attempt_latencies.append(round(guidance_latency_ms, 2))
+        fallback_used = True
+        if guidance_ok:
+            out = guidance_out
+            effective_fallback_engine = guidance_engine
+            effective_fallback_model = guidance_model
+            effective_fallback_provider = guidance_provider
+            fallback_reason = "clarification_guidance"
+            if not quick:
+                print(f"devin-delegate: clarification resolved via {guidance_engine}.", flush=True)
+        else:
+            status = "needs_human_clarification"
+            fallback_reason = "clarification_unresolved"
+            rc = 3
+            last_stderr = (
+                "devin-delegate: clarification still required after Codex and Claude guidance attempts.\n"
+                "Please answer the clarifying question below and re-run.\n\n"
+                "Devin clarification request:\n"
+                f"{out[:1200]}\n\n"
+                "Guidance chain errors:\n"
+                f"{guidance_err}\n"
+            )
+
+    if (rc != 0 or not schema_valid) and status != "needs_human_clarification":
         fallback_used = True
         error_category = classify_error(rc, last_stderr, schema_valid)
         fallback_reason = error_category
@@ -769,17 +928,22 @@ def run_delegate(
             envelope_path = repo_root / "artifacts" / "devin-delegate" / "last-envelope.json"
             envelope_path.parent.mkdir(parents=True, exist_ok=True)
             envelope_path.write_text(envelope_text + "\n", encoding="utf-8")
+            fallback_prompt = (
+                "Fallback path engaged after Devin failure.\n"
+                "Execute task envelope exactly and return concise output.\n\n"
+                + envelope_text
+            )
 
             fallback_cmd = [
                 str(script_root() / "fallback.py"),
                 "--envelope-file",
                 str(envelope_path),
                 "--fallback-engine",
-                fallback_engine,
+                effective_fallback_engine,
                 "--model",
-                fallback_model,
+                effective_fallback_model,
                 "--provider",
-                fallback_provider,
+                effective_fallback_provider,
                 "--timeout",
                 str(max(timeout_seconds, 300)),
             ]
@@ -795,23 +959,52 @@ def run_delegate(
                 pass
 
             if rc != 0:
-                if fallback_engine == "pi" and "No API key found for openai" in (f_err or ""):
+                if effective_fallback_engine == "codex":
+                    claude_model = default_model_for_engine(config, "anthropic", "claude-3.5-sonnet")
+                    if not quick:
+                        print("devin-delegate: codex fallback failed; trying Claude fallback...", flush=True)
+                    c_rc, c_out, c_err, c_latency_ms = run_engine_prompt(
+                        "anthropic",
+                        fallback_prompt,
+                        claude_model,
+                        "anthropic",
+                        timeout=max(timeout_seconds, 300),
+                        cwd=str(target_workspace),
+                        env=env,
+                    )
+                    latency_ms += c_latency_ms
+                    if c_latency_ms > 0:
+                        attempt_latencies.append(round(c_latency_ms, 2))
+                    if c_rc == 0:
+                        rc = 0
+                        out = c_out
+                        last_stderr = c_err
+                        effective_fallback_engine = "anthropic"
+                        effective_fallback_model = claude_model
+                        effective_fallback_provider = "anthropic"
+                    else:
+                        last_stderr = (
+                            f"{last_stderr}\n\n"
+                            f"Claude fallback attempt failed:\n{c_err}"
+                        ).strip()
+                if effective_fallback_engine == "pi" and "No API key found for openai" in (f_err or ""):
                     last_stderr += (
                         "\nHint: pi fallback is using provider=openai with no API key. "
                         "Use `--fallback-pi-provider kimi-coding` or configure OPENAI_API_KEY."
                     )
-                status = "error"
+                if rc != 0:
+                    status = "error"
 
     parent_tokens = int(envelope.get("metrics", {}).get("parent_context_tokens", 0))
     delegate_input_tokens = estimate_tokens(prompt)
-    delegate_output_tokens = estimate_tokens(out) if status != "auth_error" else 0
+    delegate_output_tokens = estimate_tokens(out) if status not in ("auth_error", "needs_human_clarification") else 0
     
     # Load pricing configuration for accurate cost estimation
     pricing_config = load_pricing_config()
     
     # Calculate costs using the new cost estimator
     if fallback_used:
-        delegate_cost = estimate_cost(fallback_engine, fallback_model, delegate_input_tokens, delegate_output_tokens, pricing_config)
+        delegate_cost = estimate_cost(effective_fallback_engine, effective_fallback_model, delegate_input_tokens, delegate_output_tokens, pricing_config)
     else:
         delegate_cost = estimate_cost("devin", model, delegate_input_tokens, delegate_output_tokens, pricing_config)
     
@@ -832,9 +1025,9 @@ def run_delegate(
         "base_timeout": base_timeout,
         "error_category": fallback_reason if fallback_used else "",
         "goal": task,
-        "fallback_engine": fallback_engine if fallback_used else "",
-        "fallback_model": fallback_model if fallback_used else "",
-        "fallback_provider": fallback_provider if fallback_used else "",
+        "fallback_engine": effective_fallback_engine if fallback_used else "",
+        "fallback_model": effective_fallback_model if fallback_used else "",
+        "fallback_provider": effective_fallback_provider if fallback_used else "",
     }
 
     telemetry_cmd = [
@@ -847,7 +1040,7 @@ def run_delegate(
         "--task-class",
         str(task_class),
         "--model-used",
-        f"devin:{model}" if not fallback_used else f"fallback:{fallback_engine}:{fallback_model}",
+        f"devin:{model}" if not fallback_used else f"fallback:{effective_fallback_engine}:{effective_fallback_model}",
         "--parent-context-tokens",
         str(parent_tokens),
         "--delegate-input-tokens",
@@ -898,7 +1091,7 @@ def run_delegate(
                 task_class, 
                 context_content,
                 metadata={
-                    "model": model if not fallback_used else f"fallback:{fallback_engine}:{fallback_model}",
+                    "model": model if not fallback_used else f"fallback:{effective_fallback_engine}:{effective_fallback_model}",
                     "latency_ms": round(latency_ms, 2),
                     "cost_usd": round(delegate_cost, 6),
                     "fallback_used": fallback_used

@@ -16,7 +16,9 @@ from delegate import (
     compute_timeout,
     estimate_repo_scale,
     output_is_valid,
+    output_needs_clarification,
     call,
+    default_model_for_engine,
     resolve_fallback_settings,
 )
 
@@ -234,6 +236,34 @@ class TestResolveFallbackSettings:
         assert engine == "pi"
         assert model == "k2p6"
         assert provider == "kimi-coding"
+
+
+class TestClarificationDetection:
+    """Test clarification request detection heuristics."""
+
+    def test_detects_direct_clarification_requests(self):
+        text = "# Result\nI need more context before I can proceed. Could you clarify the API version?\n\n# Evidence\n-\n\n# Next steps\nPlease provide details."
+        assert output_needs_clarification(text)
+
+    def test_ignores_normal_completion(self):
+        text = "# Result\nImplemented auth middleware and tests.\n\n# Evidence\n- Updated src/auth.py\n\n# Next steps\nRun pytest."
+        assert not output_needs_clarification(text)
+
+
+class TestDefaultModelForEngine:
+    """Test default model selection for fallback engines."""
+
+    def test_prefers_configured_provider_default(self):
+        config = {
+            "fallback_providers": {
+                "anthropic": {"default_model": "claude-3.5-sonnet"}
+            }
+        }
+        assert default_model_for_engine(config, "anthropic", "fallback-model") == "claude-3.5-sonnet"
+
+    def test_uses_builtin_default_when_missing(self):
+        config = {"fallback_providers": {}}
+        assert default_model_for_engine(config, "codex", "fallback-model") == "gpt-5.5"
 
 
 if __name__ == "__main__":
