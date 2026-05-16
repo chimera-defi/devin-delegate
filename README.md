@@ -38,6 +38,9 @@ cd /root/.agents/skills/devin-delegate
 ./setup.sh
 ```
 
+`setup.sh` also configures `core.hooksPath=.githooks` so commit messages are validated for
+agent tagging and human co-author attribution.
+
 ## Requirements
 
 - `devin` CLI tool (https://docs.devin.ai)

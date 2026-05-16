@@ -5,6 +5,11 @@ set -euo pipefail
 SKILL_ROOT="$(cd "$(dirname "$0")" && pwd)"
 SCRIPTS="$SKILL_ROOT/scripts"
 
+# Enable local hooks for attribution/commit format checks.
+if [ -d "$SKILL_ROOT/.githooks" ]; then
+    git -C "$SKILL_ROOT" config core.hooksPath .githooks || true
+fi
+
 # Link shorthand if not present
 if ! command -v devin-delegate >/dev/null 2>&1; then
     if [ -d "$HOME/.local/bin" ]; then
