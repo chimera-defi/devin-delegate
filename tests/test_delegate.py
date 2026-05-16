@@ -249,6 +249,10 @@ class TestClarificationDetection:
         text = "# Result\nImplemented auth middleware and tests.\n\n# Evidence\n- Updated src/auth.py\n\n# Next steps\nRun pytest."
         assert not output_needs_clarification(text)
 
+    def test_detects_request_without_question_mark(self):
+        text = "# Result\nPlease provide the target branch name.\n\n# Evidence\n-\n\n# Next steps\nWaiting for branch input."
+        assert output_needs_clarification(text)
+
 
 class TestDefaultModelForEngine:
     """Test default model selection for fallback engines."""

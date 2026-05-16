@@ -182,8 +182,6 @@ def output_needs_clarification(text: str) -> bool:
         r"\bnot enough\b.{0,40}\b(context|information|details)\b",
         r"\b(?:cannot|can't|can not)\b.{0,80}\b(without|until)\b",
     ]
-    if "?" not in text and "clarif" not in lower:
-        return False
     return any(re.search(p, lower) for p in patterns)
 
 
