@@ -34,12 +34,15 @@ Devin Delegate provides a robust interface for delegating tasks to Devin while m
 # Clone this skill to your .agents/skills directory
 cd /root/.agents/skills/devin-delegate
 
-# Run setup script (installs dd shorthand)
+# Run setup script (installs wrappers + workspace skill links)
 ./setup.sh
 ```
 
 `setup.sh` also configures `core.hooksPath=.githooks` so commit messages are validated for
-agent tagging and human co-author attribution.
+agent tagging and human co-author attribution, and installs:
+- `devin-delegate`
+- `devin-delegate-manage`
+- `dd` (if not already claimed by another binary)
 
 ## Requirements
 
@@ -256,6 +259,15 @@ The skill includes bypass detection to ensure tasks go through the proper delega
 
 # Generate full report
 ./scripts/detect_bypass.py --output report.json
+
+# Workspace propagation + compliance audits
+devin-delegate-manage workspace-install
+devin-delegate-manage workspace-audit
+devin-delegate-manage usage-audit
+devin-delegate-manage workspace-sync
+
+# CI/pass-fail gate on bypass rate
+devin-delegate-manage ci-gate --days 7 --threshold 20
 ```
 
 ## Comparison: Devin vs Kimi Delegate
@@ -336,6 +348,13 @@ devin-delegate/
 │   ├── devin_delegate_telemetry.py  # Telemetry tracking
 │   ├── env_check.py         # Environment validation
 │   ├── detect_bypass.py     # Bypass detection
+│   ├── repo_scan.py         # Workspace repo/worktree discovery helpers
+│   ├── install_workspace_skill.py # Install devin-delegate into sibling repos
+│   ├── audit_workspace_skills.py  # Audit skill/doc propagation coverage
+│   ├── audit_workspace_usage.py   # Audit actual wrapper vs raw devin usage
+│   ├── session_nudge.py     # Session-start bypass/adoption nudge
+│   ├── ci_gate.py           # CI gate on bypass-rate threshold
+│   ├── devin-delegate-manage.sh   # Orchestrator for workspace ops
 │   ├── cost_estimator.py    # Cost estimation utilities
 │   └── safety_sandbox.py    # Safety sandbox checks
 └── tests/

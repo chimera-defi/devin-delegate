@@ -5,17 +5,46 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 
 DELEGATE_CMD_RE = re.compile(
-    r"(?:^|\s)(?:\./)?(?:skills/devin-delegate/scripts/delegate\.py|devin-delegate)(?:\s|$)",
+    r"(?:^|\s)(?:\./)?(?:skills/devin-delegate/scripts/delegate\.py|devin-delegate|dd)(?:\s|$)",
     re.IGNORECASE,
 )
-DEVIN_RAW_RE = re.compile(r"\bdevin\s+--print\b|\bdevin\s+--task\b", re.IGNORECASE)
+_INVOKE_PREFIX = r"(?:^(?:[A-Z_]+=\S+\s+)*|(?:&&|\|\||;|\|)\s+|\bsudo\s+)"
+DEVIN_RAW_RE = re.compile(_INVOKE_PREFIX + r"devin\s+--(?:print|task)\b", re.IGNORECASE)
+
+
+def is_false_positive_command(command: str) -> bool:
+    """Ignore search/literal checks that mention Devin flags without invocation intent."""
+    stripped = command.lstrip()
+    search_prefixes = (
+        "rg ",
+        "rg -",
+        "grep ",
+        "grep -",
+        "ag ",
+        "awk ",
+        "sed ",
+        "git commit",
+        "git add",
+        "git log",
+        "git show",
+        "git diff",
+        "python3 -c",
+        "python -c",
+        "command -v devin",
+    )
+    return stripped.startswith(search_prefixes)
+
+
+def is_raw_devin_call(command: str) -> bool:
+    if is_false_positive_command(command):
+        return False
+    return bool(DEVIN_RAW_RE.search(command))
 
 
 def repo_slug(repo_path: Path) -> str:
@@ -88,13 +117,15 @@ def parse_bypasses_claude(path: Path) -> list[dict[str, Any]]:
             command = item.get("input", {}).get("command", "")
             if not isinstance(command, str):
                 continue
-            if DEVIN_RAW_RE.search(command) and not DELEGATE_CMD_RE.search(command):
-                bypasses.append({
-                    "source": "claude",
-                    "session_file": str(path),
-                    "command": command,
-                    "timestamp": event.get("timestamp", ""),
-                })
+            if is_raw_devin_call(command) and not DELEGATE_CMD_RE.search(command):
+                bypasses.append(
+                    {
+                        "source": "claude",
+                        "session_file": str(path),
+                        "command": command,
+                        "timestamp": event.get("timestamp", ""),
+                    }
+                )
     return bypasses
 
 
@@ -109,12 +140,38 @@ def extract_cmd_from_exec_args(raw: Any) -> str:
     return cmd if isinstance(cmd, str) else ""
 
 
-def parse_bypasses_codex(path: Path) -> list[dict[str, Any]]:
-    bypasses: list[dict[str, Any]] = []
+def extract_cmds_from_parallel_args(raw: Any) -> list[str]:
+    if not isinstance(raw, str):
+        return []
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    tool_uses = payload.get("tool_uses")
+    if not isinstance(tool_uses, list):
+        return []
+    commands: list[str] = []
+    for tool in tool_uses:
+        if not isinstance(tool, dict):
+            continue
+        if tool.get("recipient_name") != "functions.exec_command":
+            continue
+        params = tool.get("parameters")
+        if not isinstance(params, dict):
+            continue
+        cmd = params.get("cmd")
+        if isinstance(cmd, str):
+            commands.append(cmd)
+    return commands
+
+
+def extract_codex_commands(path: Path) -> list[str]:
+    commands: list[str] = []
     try:
         handle = path.open("r", encoding="utf-8", errors="ignore")
     except OSError:
-        return bypasses
+        return commands
+
     with handle:
         for line in handle:
             line = line.strip()
@@ -132,14 +189,27 @@ def parse_bypasses_codex(path: Path) -> list[dict[str, Any]]:
                 continue
             name = payload.get("name")
             arguments = payload.get("arguments")
-            cmd = extract_cmd_from_exec_args(arguments) if name == "exec_command" else ""
-            if cmd and DEVIN_RAW_RE.search(cmd) and not DELEGATE_CMD_RE.search(cmd):
-                bypasses.append({
+            if name == "exec_command":
+                cmd = extract_cmd_from_exec_args(arguments)
+                if cmd:
+                    commands.append(cmd)
+            elif name == "parallel":
+                commands.extend(extract_cmds_from_parallel_args(arguments))
+    return commands
+
+
+def parse_bypasses_codex(path: Path) -> list[dict[str, Any]]:
+    bypasses: list[dict[str, Any]] = []
+    for cmd in extract_codex_commands(path):
+        if is_raw_devin_call(cmd) and not DELEGATE_CMD_RE.search(cmd):
+            bypasses.append(
+                {
                     "source": "codex",
                     "session_file": str(path),
                     "command": cmd,
                     "timestamp": "",
-                })
+                }
+            )
     return bypasses
 
 
@@ -176,6 +246,10 @@ def detect_bypasses(workspace_root: Path, days: int) -> dict[str, Any]:
                             total_delegate += 1
 
     for session_file in iter_codex_session_files(cutoff_ts):
+        commands = extract_codex_commands(session_file)
+        for cmd in commands:
+            if DELEGATE_CMD_RE.search(cmd):
+                total_delegate += 1
         hits = parse_bypasses_codex(session_file)
         for hit in hits:
             hit.setdefault("repo", "unknown")
@@ -183,9 +257,7 @@ def detect_bypasses(workspace_root: Path, days: int) -> dict[str, Any]:
             bypasses_by_repo.setdefault(hit["repo"], []).append(hit)
 
     total_raw = len(all_bypasses)
-    bypass_rate_pct = round(
-        (total_raw * 100.0 / (total_raw + total_delegate)), 2
-    ) if (total_raw + total_delegate) else 0.0
+    bypass_rate_pct = round((total_raw * 100.0 / (total_raw + total_delegate)), 2) if (total_raw + total_delegate) else 0.0
 
     return {
         "measured_at": datetime.now(timezone.utc).isoformat(),
@@ -221,19 +293,21 @@ def nudge_report(report: dict[str, Any]) -> str:
     for repo, count in sorted(report["bypasses_by_repo"].items(), key=lambda x: x[1], reverse=True):
         if count > 0:
             lines.append(f"  {repo}: {count} raw call(s)")
-    lines.extend([
-        "",
-        "Route through the skill wrapper instead:",
-        "   devin-delegate --task \"...\" --workspace /path/to/repo",
-        "   or: dd --task \"...\"  (if setup.sh was run)",
-        "",
-        "Direct `devin --print` calls bypass:",
-        "   - Structured envelopes",
-        "   - Auto-scaling timeouts",
-        "   - Auth error detection",
-        "   - Fallback routing",
-        "   - Telemetry for continuous improvement",
-    ])
+    lines.extend(
+        [
+            "",
+            "Route through the skill wrapper instead:",
+            '   devin-delegate --task "..." --workspace /path/to/repo',
+            '   or: dd --task "..."  (if setup.sh was run)',
+            "",
+            "Direct `devin --print` / `devin --task` calls bypass:",
+            "   - Structured envelopes",
+            "   - Auto-scaling timeouts",
+            "   - Clarification guidance",
+            "   - Fallback routing",
+            "   - Telemetry for continuous improvement",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -249,6 +323,7 @@ def main() -> int:
 
     if args.watch:
         import time
+
         print(f"Watch mode: polling every {args.watch_interval}s (Ctrl+C to stop)")
         last_bypasses = 0
         try:
