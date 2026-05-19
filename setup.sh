@@ -43,6 +43,59 @@ chmod +x "$BIN_DIR/devin-delegate-manage"
 
 echo "Linked devin-delegate-manage -> $SCRIPTS/devin-delegate-manage.sh"
 
+# Shell ergonomics
+SHELL_RC=""
+if [ -n "${ZSH_VERSION:-}" ] || [ -f "$HOME/.zshrc" ]; then
+  SHELL_RC="$HOME/.zshrc"
+elif [ -n "${BASH_VERSION:-}" ] || [ -f "$HOME/.bashrc" ]; then
+  SHELL_RC="$HOME/.bashrc"
+fi
+
+if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
+  if ! grep -q "alias dd='devin-delegate'" "$SHELL_RC" 2>/dev/null; then
+    {
+      echo ""
+      echo "# devin-delegate aliases"
+      echo "alias dd='devin-delegate'"
+      echo "alias dd-check='devin-delegate --check'"
+      echo "alias dd-stats='devin-delegate --stats'"
+      echo "alias dd-history='devin-delegate --history'"
+      echo "alias dd-nudge='devin-delegate-manage session-nudge'"
+      echo "alias dd-review='devin-delegate-manage review'"
+      echo "alias dd-tune='devin-delegate-manage tune'"
+    } >> "$SHELL_RC"
+    echo "  aliases added to $SHELL_RC: dd, dd-check, dd-stats, dd-history, dd-nudge, dd-review, dd-tune"
+  else
+    echo "  aliases already present in $SHELL_RC"
+  fi
+
+  NUDGE_BLOCK='# devin-delegate startup nudge\nif [[ $- == *i* ]]; then\n  nudge_out=$(devin-delegate-manage session-nudge --quiet 2>/dev/null)\n  if [ -n "$nudge_out" ]; then\n    echo "$nudge_out"\n  fi\nfi\n'
+  if ! grep -q "devin-delegate startup nudge" "$SHELL_RC" 2>/dev/null; then
+    echo -e "\n$NUDGE_BLOCK" >> "$SHELL_RC"
+    echo "  startup nudge added to $SHELL_RC"
+  else
+    echo "  startup nudge already present in $SHELL_RC"
+  fi
+fi
+
+# Install shell shim to intercept raw devin --print/--task calls.
+SHIM_SOURCE="$SCRIPTS/devin-shim.bash"
+SHIM_TARGET="$HOME/.local/share/devin-delegate-shim.sh"
+if [ -f "$SHIM_SOURCE" ]; then
+  mkdir -p "$(dirname "$SHIM_TARGET")"
+  cp "$SHIM_SOURCE" "$SHIM_TARGET"
+  if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
+    SHIM_LINE='source "$HOME/.local/share/devin-delegate-shim.sh"'
+    if ! grep -q "devin-delegate-shim" "$SHELL_RC" 2>/dev/null; then
+      echo -e "\n# devin-delegate-shim (intercepts raw devin wrapper bypasses)\n$SHIM_LINE" >> "$SHELL_RC"
+      echo "  shim added to $SHELL_RC"
+    else
+      echo "  shim already present in $SHELL_RC"
+    fi
+  fi
+  echo "  shim:    $SHIM_TARGET"
+fi
+
 echo ""
 echo "Running environment check..."
 "$SCRIPTS/env_check.py"
@@ -55,4 +108,5 @@ devin-delegate installed
   codex:   ${CODEX_HOME:-$HOME/.codex}/skills/devin-delegate
   bin:     $BIN_DIR/devin-delegate
   manage:  $BIN_DIR/devin-delegate-manage
+  shim:    $HOME/.local/share/devin-delegate-shim.sh
 EOF

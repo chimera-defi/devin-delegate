@@ -146,6 +146,7 @@ Shorthand `dd` is available if installed via `./setup.sh`.
 ./scripts/detect_bypass.py --output report.json # save full report
 devin-delegate-manage workspace-sync            # propagate skill + docs + usage/bypass audits
 devin-delegate-manage ci-gate                   # fail if bypass rate is above threshold
+devin-delegate-manage git-hook                  # install repo pre-commit bypass gate hooks
 ```
 
 ## Workspace Propagation
@@ -155,6 +156,9 @@ devin-delegate-manage ci-gate                   # fail if bypass rate is above t
 ./scripts/audit_workspace_skills.py --workspace-root /root/.openclaw/workspace/dev
 ./scripts/audit_workspace_usage.py --workspace-root /root/.openclaw/workspace/dev --days 30
 ./scripts/session_nudge.py --workspace-root /root/.openclaw/workspace/dev --days 7
+./scripts/tune_timeouts.py --days 14
+./scripts/review_devin_delegate.py --scope global --json
+./scripts/summarize_devin_delegate.py
 ```
 
 ## Comparison: Devin vs Kimi Delegate

@@ -23,6 +23,8 @@ Devin Delegate provides a robust interface for delegating tasks to Devin while m
 - **Smart Fallback**: Automatic routing to Codex GPT-5.5 when Devin fails (timeout, auth errors, unavailability)
 - **Cost Optimization**: Fallback to Codex GPT-5.5 at significant cost savings vs Devin's $200/mo plan
 - **Telemetry**: Comprehensive tracking of calls, latency, fallback rates, and token savings
+- **Quality Review Loop**: Telemetry-driven health scoring with prioritized recommendations
+- **Timeout Tuning**: Data-driven timeout multiplier recommendations by repo scale and task class
 - **Task Templates**: Pre-built templates for common task patterns
 - **Batch Mode**: Process multiple tasks sequentially
 - **Auto-scaling Timeouts**: Timeouts adjust based on repository size and complexity
@@ -264,10 +266,18 @@ The skill includes bypass detection to ensure tasks go through the proper delega
 devin-delegate-manage workspace-install
 devin-delegate-manage workspace-audit
 devin-delegate-manage usage-audit
-devin-delegate-manage workspace-sync
+devin-delegate-manage workspace-sync   # alias: `measure`
 
-# CI/pass-fail gate on bypass rate
-devin-delegate-manage ci-gate --days 7 --threshold 20
+# CI/pass-fail quality gate
+devin-delegate-manage ci-gate --days 7 --bypass-threshold 20 --fallback-threshold 40
+
+# Install commit-time bypass gate hooks across repos
+devin-delegate-manage git-hook
+
+# Analyze timeout behavior and review quality trends
+devin-delegate-manage tune --days 14
+devin-delegate-manage review --scope global --json
+devin-delegate-manage summarize
 ```
 
 ## Comparison: Devin vs Kimi Delegate
@@ -352,8 +362,13 @@ devin-delegate/
 │   ├── install_workspace_skill.py # Install devin-delegate into sibling repos
 │   ├── audit_workspace_skills.py  # Audit skill/doc propagation coverage
 │   ├── audit_workspace_usage.py   # Audit actual wrapper vs raw devin usage
+│   ├── install_git_hooks.py # Install pre-commit bypass gate hooks across repos
 │   ├── session_nudge.py     # Session-start bypass/adoption nudge
 │   ├── ci_gate.py           # CI gate on bypass-rate threshold
+│   ├── tune_timeouts.py     # Timeout tuning recommendations from telemetry
+│   ├── review_devin_delegate.py   # Health score + prioritized findings
+│   ├── summarize_devin_delegate.py # Trend summary from recent artifacts
+│   ├── devin-shim.bash      # Shell shim for wrapper-first interception
 │   ├── devin-delegate-manage.sh   # Orchestrator for workspace ops
 │   ├── cost_estimator.py    # Cost estimation utilities
 │   └── safety_sandbox.py    # Safety sandbox checks

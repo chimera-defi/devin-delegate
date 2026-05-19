@@ -11,13 +11,18 @@ commands:
   setup             Install local wrappers/aliases and run env checks
   check             Pre-flight env check
   bypass            Detect raw Devin calls that bypass the skill wrapper
+  tune              Analyze telemetry and suggest timeout tuning
+  review            Generate telemetry-driven self-review report
+  summarize         Summarize recent review snapshots and trends
   dashboard         Render telemetry dashboard
   session-nudge     Print session-start nudge if bypass rate is high
-  ci-gate           CI gate: fail if bypass rate exceeds threshold
+  ci-gate           CI gate: fail if quality thresholds regress
   workspace-install Install skill + doc block across workspace repos
   workspace-audit   Audit workspace adoption
   usage-audit       Audit real usage across workspace repos
+  measure           Alias for workspace-sync + review artifact generation
   workspace-sync    Install + compliance audit + usage audit + bypass audit
+  git-hook          Install pre-commit bypass gates in workspace repos
   telemetry         Summarize recent telemetry
 USAGE
 }
@@ -37,6 +42,15 @@ case "$cmd" in
   bypass)
     exec "$SCRIPT_DIR/detect_bypass.py" "$@"
     ;;
+  tune)
+    exec "$SCRIPT_DIR/tune_timeouts.py" "$@"
+    ;;
+  review)
+    exec "$SCRIPT_DIR/review_devin_delegate.py" "$@"
+    ;;
+  summarize|summary)
+    exec "$SCRIPT_DIR/summarize_devin_delegate.py" "$@"
+    ;;
   dashboard)
     exec "$SCRIPT_DIR/telemetry_dashboard.py" "$@"
     ;;
@@ -55,7 +69,10 @@ case "$cmd" in
   usage-audit)
     exec "$SCRIPT_DIR/audit_workspace_usage.py" "$@"
     ;;
-  workspace-sync)
+  git-hook)
+    exec "$SCRIPT_DIR/install_git_hooks.py" "$@"
+    ;;
+  workspace-sync|measure)
     WORKSPACE_ROOT="${DEVIN_DELEGATE_WORKSPACE_ROOT:-/root/.openclaw/workspace/dev}"
     OUT_DIR="$SCRIPT_DIR/../artifacts/devin-delegate"
     STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -70,6 +87,7 @@ case "$cmd" in
     "$SCRIPT_DIR/audit_workspace_skills.py" --workspace-root "$WORKSPACE_ROOT" --output "$AUDIT_OUT" >/dev/null
     "$SCRIPT_DIR/audit_workspace_usage.py" --workspace-root "$WORKSPACE_ROOT" --days 30 --output "$USAGE_OUT" >/dev/null
     "$SCRIPT_DIR/detect_bypass.py" --workspace-root "$WORKSPACE_ROOT" --days 30 --output "$BYPASS_OUT" >/dev/null
+    "$SCRIPT_DIR/install_git_hooks.py" --workspace-root "$WORKSPACE_ROOT" >/dev/null
 
     if command -v jq >/dev/null 2>&1; then
       repo_count="$(jq -r '.repo_count' "$AUDIT_OUT")"
@@ -95,6 +113,12 @@ case "$cmd" in
     echo "  audit_report:   $AUDIT_OUT"
     echo "  usage_report:   $USAGE_OUT"
     echo "  bypass_report:  $BYPASS_OUT"
+
+    if [ -x "$SCRIPT_DIR/review_devin_delegate.py" ]; then
+      REVIEW_OUT="$OUT_DIR/workspace-review-30d-$STAMP.json"
+      "$SCRIPT_DIR/review_devin_delegate.py" --scope global --workspace-root "$WORKSPACE_ROOT" --output-json "$REVIEW_OUT" --json >/dev/null
+      echo "  review_report:  $REVIEW_OUT"
+    fi
 
     if [[ "$compliant_count" != "$repo_count" ]]; then
       echo "workspace-sync failed: non-compliant repos remain" >&2
