@@ -189,6 +189,8 @@ def default_model_for_engine(config: dict[str, Any], engine: str, fallback_model
     providers = config.get("fallback_providers", {})
     if isinstance(providers, dict):
         provider_entry = providers.get(engine, {})
+        if not provider_entry and engine == "claude":
+            provider_entry = providers.get("anthropic", {})
         if isinstance(provider_entry, dict):
             model = provider_entry.get("default_model")
             if isinstance(model, str) and model.strip():
@@ -196,6 +198,7 @@ def default_model_for_engine(config: dict[str, Any], engine: str, fallback_model
     defaults = {
         "codex": "gpt-5.5",
         "anthropic": "claude-3.5-sonnet",
+        "claude": "claude-3.5-sonnet",
         "kimi": "kimi-default",
         "pi": "gpt-5.3-codex",
     }
@@ -215,10 +218,10 @@ def run_engine_prompt(
         if shutil.which("codex") is None:
             return 127, "", "fallback error: `codex` binary not found", 0.0
         return call(["codex", "exec", "--model", model, prompt], timeout=timeout, cwd=cwd, env=env)
-    if engine == "anthropic":
-        if shutil.which("anthropic") is None:
-            return 127, "", "fallback error: `anthropic` binary not found", 0.0
-        return call(["anthropic", "complete", "--model", model, prompt], timeout=timeout, cwd=cwd, env=env)
+    if engine in ("anthropic", "claude"):
+        if shutil.which("claude") is None:
+            return 127, "", "fallback error: `claude` binary not found", 0.0
+        return call(["claude", "-p", "--model", model, prompt], timeout=timeout, cwd=cwd, env=env)
     if engine == "kimi":
         if shutil.which("kimi") is None:
             return 127, "", "fallback error: `kimi` binary not found", 0.0
@@ -249,7 +252,7 @@ def resolve_clarification_with_guidance(
     claude_model = default_model_for_engine(config, "anthropic", "claude-3.5-sonnet")
     attempts = [
         ("codex", codex_model, "openai"),
-        ("anthropic", claude_model, "anthropic"),
+        ("claude", claude_model, "claude"),
     ]
     prompt = (
         "Devin asked for clarification instead of finishing.\n"
@@ -694,6 +697,7 @@ def run_check(config: dict, routing: dict) -> int:
 
     devin_bin = shutil.which("devin")
     codex_bin = shutil.which("codex")
+    claude_bin = shutil.which("claude")
     pi_bin = shutil.which("pi")
     devin_delegate_bin = shutil.which("devin-delegate")
 
@@ -701,6 +705,7 @@ def run_check(config: dict, routing: dict) -> int:
     checks.append({"name": "devin", "status": "ok" if devin_bin else "missing", "path": devin_bin or ""})
     checks.append({"name": "devin-auth", "status": "ok" if auth_ok else "error", "detail": "authenticated" if auth_ok else "run `devin auth login`"})
     checks.append({"name": "codex", "status": "ok" if codex_bin else "missing", "path": codex_bin or ""})
+    checks.append({"name": "claude", "status": "ok" if claude_bin else "missing", "path": claude_bin or ""})
     checks.append({"name": "pi", "status": "ok" if pi_bin else "missing", "path": pi_bin or ""})
     checks.append({"name": "devin-delegate (shorthand)", "status": "ok" if devin_delegate_bin else "missing", "path": devin_delegate_bin or ""})
 
@@ -728,7 +733,7 @@ def run_check(config: dict, routing: dict) -> int:
 def run_subagent_check(config: dict[str, Any], repo_root: Path) -> int:
     devin_bin = shutil.which("devin")
     codex_bin = shutil.which("codex")
-    anth_bin = shutil.which("anthropic")
+    claude_bin = shutil.which("claude")
     auth_ok = devin_auth_ok()
 
     checks: list[dict[str, str]] = [
@@ -736,10 +741,10 @@ def run_subagent_check(config: dict[str, Any], repo_root: Path) -> int:
         {"name": "devin-auth", "status": "ok" if auth_ok else "error", "detail": "authenticated" if auth_ok else "run `devin auth login`"},
         {"name": "codex", "status": "ok" if codex_bin else "missing", "path": codex_bin or ""},
         {
-            "name": "anthropic",
-            "status": "ok" if anth_bin else "missing",
+            "name": "claude",
+            "status": "ok" if claude_bin else "missing",
             "detail": "recommended for Claude fallback in clarification chain",
-            "path": anth_bin or "",
+            "path": claude_bin or "",
         },
     ]
 
@@ -785,14 +790,14 @@ def run_subagent_check(config: dict[str, Any], repo_root: Path) -> int:
     )
 
     required_ok = bool(devin_bin) and auth_ok and bool(codex_bin) and smoke_ok
-    recommended_ok = bool(anth_bin)
+    recommended_ok = bool(claude_bin)
     result = {
         "mode": "subagent_check",
         "all_required_ok": required_ok,
         "recommended_ok": recommended_ok,
         "checks": checks,
         "notes": {
-            "clarification_guidance_order": ["codex", "anthropic", "human"],
+            "clarification_guidance_order": ["codex", "claude", "human"],
             "auto_context_enabled": auto_context_enabled,
         },
     }
@@ -1183,10 +1188,10 @@ def run_delegate(
                     if not quick:
                         print("devin-delegate: codex fallback failed; trying Claude fallback...", flush=True)
                     c_rc, c_out, c_err, c_latency_ms = run_engine_prompt(
-                        "anthropic",
+                        "claude",
                         fallback_prompt,
                         claude_model,
-                        "anthropic",
+                        "claude",
                         timeout=max(timeout_seconds, 300),
                         cwd=str(target_workspace),
                         env=env,
@@ -1198,9 +1203,9 @@ def run_delegate(
                         rc = 0
                         out = c_out
                         last_stderr = c_err
-                        effective_fallback_engine = "anthropic"
+                        effective_fallback_engine = "claude"
                         effective_fallback_model = claude_model
-                        effective_fallback_provider = "anthropic"
+                        effective_fallback_provider = "claude"
                     else:
                         last_stderr = (
                             f"{last_stderr}\n\n"
@@ -1416,7 +1421,7 @@ def main() -> int:
     parser.add_argument("--dashboard", action="store_true", help="Show telemetry dashboard")
     parser.add_argument("--dashboard-html", action="store_true", help="Generate HTML telemetry dashboard")
     parser.add_argument("--dashboard-output", help="Output file for HTML dashboard")
-    parser.add_argument("--fallback-engine", help="Override fallback engine (codex, kimi, anthropic, pi)")
+    parser.add_argument("--fallback-engine", help="Override fallback engine (codex, kimi, claude, anthropic, pi)")
     parser.add_argument("--fallback-provider", dest="fallback_provider_legacy", help="Deprecated alias for --fallback-engine")
     parser.add_argument("--fallback-model", help="Override fallback model")
     parser.add_argument("--fallback-pi-provider", help="Provider for pi fallback engine (e.g., kimi-coding, openai)")

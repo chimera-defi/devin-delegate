@@ -91,7 +91,7 @@ def main() -> int:
         check_binary("devin"),
         check_devin_auth(),
         check_binary("codex"),
-        check_binary("anthropic"),
+        check_binary("claude"),
         check_binary("pi"),
         check_binary("devin-delegate"),
     ]
@@ -109,7 +109,7 @@ def main() -> int:
     elif repo_scale["files"] >= large_files or repo_scale["mb"] >= large_mb:
         scale_label = "large"
 
-    all_ok = all(c["status"] in ("ok", "skipped") for c in checks if c["name"] != "anthropic")
+    all_ok = all(c["status"] in ("ok", "skipped") for c in checks if c["name"] != "claude")
     auth_issue = any(c["status"] == "auth_error" for c in checks)
 
     result = {

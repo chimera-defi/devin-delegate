@@ -338,7 +338,7 @@ class TestSubagentCheck:
         with patch("delegate.shutil.which") as which_mock, patch("delegate.devin_auth_ok") as auth_mock, patch(
             "delegate.build_envelope"
         ) as envelope_mock:
-            which_mock.side_effect = lambda name: "/usr/bin/" + name if name in ("devin", "codex", "anthropic") else None
+            which_mock.side_effect = lambda name: "/usr/bin/" + name if name in ("devin", "codex", "claude") else None
             auth_mock.return_value = True
             envelope_mock.return_value = {
                 "goal": "x",

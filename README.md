@@ -107,7 +107,7 @@ Options:
   --interactive            Interactive mode (prompt for confirmation)
   --safety-check           Run safety sandbox checks before delegation
   --strict-safety          Strict mode: safety warnings are treated as errors
-  --fallback-engine TEXT   Override fallback engine (codex, kimi, anthropic, pi)
+  --fallback-engine TEXT   Override fallback engine (codex, kimi, claude, anthropic, pi)
   --fallback-model TEXT    Override fallback model
   --fallback-pi-provider   Provider passed to pi fallback (e.g., kimi-coding, openai)
 ```

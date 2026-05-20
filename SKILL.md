@@ -72,7 +72,7 @@ Multiple fallback providers are supported. The default fallback is configured in
 
 - **Codex** (priority 1): GPT-5.5, GPT-5.3-codex, o3-mini
 - **Kimi** (priority 2): kimi-default, kimi-pro  
-- **Anthropic** (priority 3): claude-3.5-sonnet, claude-3-opus
+- **Claude CLI** (priority 3, engine `claude`; legacy alias `anthropic`): claude-3.5-sonnet, claude-3-opus
 - **Pi** (priority 4): gpt-5.3-codex
 
 Override fallback engine:

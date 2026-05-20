@@ -36,9 +36,9 @@ def run_kimi(prompt: str, model: str, timeout: int) -> subprocess.CompletedProce
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
 
 
-def run_anthropic(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
-    """Run Anthropic Claude as a fallback provider."""
-    cmd = ["anthropic", "complete", "--model", model]
+def run_claude(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
+    """Run Claude Code CLI as a fallback provider."""
+    cmd = ["claude", "-p", "--model", model]
     cmd += [prompt]
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
 
@@ -46,7 +46,7 @@ def run_anthropic(prompt: str, model: str, timeout: int) -> subprocess.Completed
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--envelope-file", required=True)
-    parser.add_argument("--fallback-engine", default="codex", choices=["codex", "pi", "kimi", "anthropic"])
+    parser.add_argument("--fallback-engine", default="codex", choices=["codex", "pi", "kimi", "claude", "anthropic"])
     parser.add_argument("--model", default="gpt-5.5")
     parser.add_argument("--provider", default="openai")
     parser.add_argument("--timeout", type=int, default=300)
@@ -83,11 +83,11 @@ def main() -> int:
             sys.stderr.write("fallback error: `kimi` binary not found\n")
             return 127
         proc = run_kimi(prompt, args.model, args.timeout)
-    elif args.fallback_engine == "anthropic":
-        if shutil.which("anthropic") is None:
-            sys.stderr.write("fallback error: `anthropic` binary not found\n")
+    elif args.fallback_engine in ("claude", "anthropic"):
+        if shutil.which("claude") is None:
+            sys.stderr.write("fallback error: `claude` binary not found\n")
             return 127
-        proc = run_anthropic(prompt, args.model, args.timeout)
+        proc = run_claude(prompt, args.model, args.timeout)
     else:
         sys.stderr.write(f"fallback error: unknown engine {args.fallback_engine}\n")
         return 2
