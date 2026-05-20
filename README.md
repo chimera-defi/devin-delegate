@@ -20,6 +20,7 @@ Devin Delegate provides a robust interface for delegating tasks to Devin while m
 
 - **Structured Envelopes**: Tasks are packaged with explicit goals, scope, constraints, and acceptance criteria
 - **Workspace Context**: Automatic injection of repository context for better task execution
+- **Auto Follow-Up Context**: Recent delegated task history is stitched into new runs by default (can be disabled)
 - **Smart Fallback**: Automatic routing to Codex GPT-5.5 when Devin fails (timeout, auth errors, unavailability)
 - **Cost Optimization**: Fallback to Codex GPT-5.5 at significant cost savings vs Devin's $200/mo plan
 - **Telemetry**: Comprehensive tracking of calls, latency, fallback rates, and token savings
@@ -68,6 +69,9 @@ devin-delegate --template implement-feature --var feature="rate limiter"
 # Environment check
 devin-delegate --check
 
+# Subagent usability chain check
+devin-delegate --subagent-check
+
 # View stats
 devin-delegate --stats
 ```
@@ -84,6 +88,9 @@ Options:
   --workspace PATH         Repository workspace path (default: current git repo)
   --task-class TEXT        Task class: research, implement, debug, review, browser
   --context-file PATH      Additional context file to include in envelope
+  --no-auto-context        Disable automatic context carryover from recent delegation history
+  --auto-context-limit N   Number of recent tasks to include for auto context
+  --auto-context-max-chars Max chars for auto context payload
   --template TEXT          Use a predefined task template
   --var KEY=VALUE          Variables for template substitution
   --timeout-override SEC   Override computed timeout
@@ -91,6 +98,7 @@ Options:
   --print-envelope         Print the envelope JSON
   --quick                  Skip progress indicators (faster for scripts)
   --check                  Run environment and health checks
+  --subagent-check         Verify subagent usability chain (Devin auth + fallback + envelope smoke)
   --stats                  Show usage statistics (14d window)
   --history                Show recent task history
   --templates              List available templates

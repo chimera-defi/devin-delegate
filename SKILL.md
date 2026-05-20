@@ -36,12 +36,14 @@ Use this skill when you want a stronger parent agent to plan and guardrails-chec
 1. Pre-flight check:
    - `./scripts/env_check.py`
    - Or: `devin-delegate --check`
+   - For end-to-end delegation readiness: `devin-delegate --subagent-check`
 2. Optional: Run safety checks:
    - `devin-delegate --safety-check --task "..."`
 3. Build envelope and delegate:
    - `devin-delegate --task "..." --workspace /root/.openclaw/workspace/dev/some-repo`
    - Or with a template: `devin-delegate --template implement-feature --var feature="JWT middleware"`
    - Or interactive: `devin-delegate --interactive --task "..."`
+   - Auto context from recent delegated tasks is included by default (disable with `--no-auto-context`).
 
 ## Process
 
@@ -111,6 +113,7 @@ Each line is `{"task": "...", "task_class": "...", "workspace": "...", "context_
 ```bash
 devin-delegate --stats     # summary (14d)
 devin-delegate --history   # recent tasks
+devin-delegate --subagent-check  # validate subagent usability chain
 ```
 
 ## Success Criteria

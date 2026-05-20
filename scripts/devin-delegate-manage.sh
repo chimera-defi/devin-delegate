@@ -10,6 +10,7 @@ usage: ./scripts/devin-delegate-manage.sh <command>
 commands:
   setup             Install local wrappers/aliases and run env checks
   check             Pre-flight env check
+  subagent-check    Verify Devin subagent usability chain
   bypass            Detect raw Devin calls that bypass the skill wrapper
   tune              Analyze telemetry and suggest timeout tuning
   review            Generate telemetry-driven self-review report
@@ -38,6 +39,9 @@ case "$cmd" in
     ;;
   check)
     exec "$SCRIPT_DIR/env_check.py" "$@"
+    ;;
+  subagent-check)
+    exec "$SCRIPT_DIR/delegate.py" --subagent-check "$@"
     ;;
   bypass)
     exec "$SCRIPT_DIR/detect_bypass.py" "$@"

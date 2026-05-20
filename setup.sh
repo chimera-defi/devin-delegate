@@ -58,13 +58,14 @@ if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
       echo "# devin-delegate aliases"
       echo "alias dd='devin-delegate'"
       echo "alias dd-check='devin-delegate --check'"
+      echo "alias dd-subagent-check='devin-delegate --subagent-check'"
       echo "alias dd-stats='devin-delegate --stats'"
       echo "alias dd-history='devin-delegate --history'"
       echo "alias dd-nudge='devin-delegate-manage session-nudge'"
       echo "alias dd-review='devin-delegate-manage review'"
       echo "alias dd-tune='devin-delegate-manage tune'"
     } >> "$SHELL_RC"
-    echo "  aliases added to $SHELL_RC: dd, dd-check, dd-stats, dd-history, dd-nudge, dd-review, dd-tune"
+    echo "  aliases added to $SHELL_RC: dd, dd-check, dd-subagent-check, dd-stats, dd-history, dd-nudge, dd-review, dd-tune"
   else
     echo "  aliases already present in $SHELL_RC"
   fi

@@ -449,6 +449,148 @@ def load_last_task(repo_root: Path) -> str:
         return ""
 
 
+def load_recent_tasks(repo_root: Path, limit: int = 5) -> list[dict[str, str]]:
+    history_path = repo_root / "artifacts" / "devin-delegate" / "history.jsonl"
+    if limit <= 0 or not history_path.exists():
+        return []
+    try:
+        lines = history_path.read_text(encoding="utf-8", errors="ignore").strip().splitlines()
+    except OSError:
+        return []
+    if not lines:
+        return []
+
+    selected: list[dict[str, str]] = []
+    for line in reversed(lines):
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        task = str(payload.get("task", "")).strip()
+        if not task:
+            continue
+        selected.append(
+            {
+                "task": task,
+                "timestamp": str(payload.get("timestamp", "")),
+            }
+        )
+        if len(selected) >= limit:
+            break
+    selected.reverse()
+    return selected
+
+
+def build_auto_context_text(
+    repo_root: Path,
+    current_task: str,
+    history_limit: int,
+    max_chars: int,
+) -> str:
+    entries = load_recent_tasks(repo_root, limit=max(history_limit * 3, history_limit))
+    if not entries:
+        return ""
+
+    current_norm = current_task.strip().lower()
+    deduped: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in reversed(entries):
+        task = item.get("task", "").strip()
+        if not task:
+            continue
+        norm = task.lower()
+        if norm == current_norm or norm in seen:
+            continue
+        seen.add(norm)
+        deduped.append(item)
+        if len(deduped) >= history_limit:
+            break
+
+    if not deduped:
+        return ""
+
+    deduped.reverse()
+
+    lines = [
+        "## Auto Context From Recent Delegations",
+        "Use this as continuity context; prioritize the current task and constraints.",
+        "",
+    ]
+    for item in deduped:
+        ts_raw = item.get("timestamp", "")
+        ts_label = ts_raw[:19].replace("T", " ") if ts_raw else "unknown-time"
+        lines.append(f"- [{ts_label} UTC] {item['task']}")
+
+    text = "\n".join(lines).strip() + "\n"
+
+    if max_chars > 0 and len(text) > max_chars:
+        # Keep the newest context entries when truncating.
+        while len(deduped) > 1:
+            deduped = deduped[1:]
+            lines = [
+                "## Auto Context From Recent Delegations",
+                "Use this as continuity context; prioritize the current task and constraints.",
+                "",
+            ]
+            for item in deduped:
+                ts_raw = item.get("timestamp", "")
+                ts_label = ts_raw[:19].replace("T", " ") if ts_raw else "unknown-time"
+                lines.append(f"- [{ts_label} UTC] {item['task']}")
+            text = "\n".join(lines).strip() + "\n"
+            if len(text) <= max_chars:
+                break
+        if len(text) > max_chars:
+            text = text[-max_chars:]
+
+    return text
+
+
+def compose_context_file(
+    repo_root: Path,
+    task: str,
+    explicit_context_file: str | None,
+    auto_context_enabled: bool,
+    auto_context_history_limit: int,
+    auto_context_max_chars: int,
+) -> tuple[str | None, bool]:
+    explicit_text = ""
+    explicit_path: Path | None = None
+    if explicit_context_file:
+        explicit_path = Path(explicit_context_file).expanduser()
+        if not explicit_path.exists():
+            raise FileNotFoundError(f"context file not found: {explicit_context_file}")
+        explicit_text = explicit_path.read_text(encoding="utf-8", errors="ignore").strip()
+
+    auto_text = ""
+    if auto_context_enabled:
+        auto_text = build_auto_context_text(
+            repo_root=repo_root,
+            current_task=task,
+            history_limit=max(1, auto_context_history_limit),
+            max_chars=max(0, auto_context_max_chars),
+        ).strip()
+
+    if explicit_path and not auto_text:
+        return str(explicit_path), False
+    if not explicit_path and not auto_text:
+        return None, False
+
+    sections: list[str] = []
+    if explicit_text:
+        sections.append("## User Context File\n" + explicit_text)
+    if auto_text:
+        sections.append(auto_text)
+
+    if not sections:
+        return None, False
+
+    out_dir = repo_root / "artifacts" / "devin-delegate" / "runtime-context"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"context-{int(time.time() * 1000)}.md"
+    out_path.write_text("\n\n".join(sections).strip() + "\n", encoding="utf-8")
+    return str(out_path), True
+
+
 def compute_timeout(
     base_timeout: int,
     task_class: str,
@@ -581,6 +723,85 @@ def run_check(config: dict, routing: dict) -> int:
     }
     print(json.dumps(result, indent=2))
     return 0 if all_ok else 1
+
+
+def run_subagent_check(config: dict[str, Any], repo_root: Path) -> int:
+    devin_bin = shutil.which("devin")
+    codex_bin = shutil.which("codex")
+    anth_bin = shutil.which("anthropic")
+    auth_ok = devin_auth_ok()
+
+    checks: list[dict[str, str]] = [
+        {"name": "devin", "status": "ok" if devin_bin else "missing", "path": devin_bin or ""},
+        {"name": "devin-auth", "status": "ok" if auth_ok else "error", "detail": "authenticated" if auth_ok else "run `devin auth login`"},
+        {"name": "codex", "status": "ok" if codex_bin else "missing", "path": codex_bin or ""},
+        {
+            "name": "anthropic",
+            "status": "ok" if anth_bin else "missing",
+            "detail": "recommended for Claude fallback in clarification chain",
+            "path": anth_bin or "",
+        },
+    ]
+
+    smoke_ok = False
+    smoke_detail = ""
+    try:
+        smoke_envelope = build_envelope("subagent usability smoke test", None)
+        required = ("goal", "task_class", "constraints", "acceptance", "output_schema")
+        missing = [k for k in required if k not in smoke_envelope]
+        if missing:
+            smoke_detail = f"missing envelope keys: {', '.join(missing)}"
+        else:
+            smoke_ok = True
+            smoke_detail = "envelope generation ok"
+    except Exception as exc:
+        smoke_detail = f"envelope generation error: {exc}"
+
+    checks.append(
+        {
+            "name": "envelope-smoke",
+            "status": "ok" if smoke_ok else "error",
+            "detail": smoke_detail,
+        }
+    )
+
+    auto_context_enabled = bool(config.get("auto_context_enabled", True))
+    auto_context_limit = int(config.get("auto_context_history_limit", 5))
+    auto_context_max_chars = int(config.get("auto_context_max_chars", 4000))
+    auto_context_path, auto_generated = compose_context_file(
+        repo_root=repo_root,
+        task="subagent usability smoke test",
+        explicit_context_file=None,
+        auto_context_enabled=auto_context_enabled,
+        auto_context_history_limit=auto_context_limit,
+        auto_context_max_chars=auto_context_max_chars,
+    )
+    checks.append(
+        {
+            "name": "auto-context",
+            "status": "ok" if auto_context_enabled else "disabled",
+            "detail": auto_context_path if auto_generated else "no recent history available",
+        }
+    )
+
+    required_ok = bool(devin_bin) and auth_ok and bool(codex_bin) and smoke_ok
+    recommended_ok = bool(anth_bin)
+    result = {
+        "mode": "subagent_check",
+        "all_required_ok": required_ok,
+        "recommended_ok": recommended_ok,
+        "checks": checks,
+        "notes": {
+            "clarification_guidance_order": ["codex", "anthropic", "human"],
+            "auto_context_enabled": auto_context_enabled,
+        },
+    }
+    print(json.dumps(result, indent=2))
+    if required_ok:
+        return 0
+    if not auth_ok:
+        return 126
+    return 1
 
 
 def print_stats(repo_root: Path) -> int:
@@ -1170,11 +1391,15 @@ def main() -> int:
     parser.add_argument("task_positional", nargs="?", default="", help="Task to delegate (positional)")
     parser.add_argument("--task", default="", help="Task to delegate (flag form)")
     parser.add_argument("--context-file")
+    parser.add_argument("--no-auto-context", action="store_true", help="Disable automatic context carryover from recent delegation history")
+    parser.add_argument("--auto-context-limit", type=int, default=0, help="Number of recent tasks to include for auto context (0=use config)")
+    parser.add_argument("--auto-context-max-chars", type=int, default=0, help="Max characters for auto context payload (0=use config)")
     parser.add_argument("--task-class")
     parser.add_argument("--workspace", "-w", type=Path, default=None, help="Workspace directory")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--print-envelope", action="store_true")
     parser.add_argument("--check", action="store_true", help="Pre-flight env check only")
+    parser.add_argument("--subagent-check", action="store_true", help="Check Devin subagent usability (auth, fallback chain, envelope smoke)")
     parser.add_argument("--stats", action="store_true", help="Print recent telemetry summary")
     parser.add_argument("--interactive", "-i", action="store_true", help="Interactive envelope builder")
     parser.add_argument("--safety-check", action="store_true", help="Run safety sandbox checks before delegation")
@@ -1230,6 +1455,9 @@ def main() -> int:
 
     if args.check:
         return run_check(config, routing)
+
+    if args.subagent_check:
+        return run_subagent_check(config, repo_root)
 
     if args.stats:
         return print_stats(repo_root)
@@ -1332,12 +1560,32 @@ def main() -> int:
         return 2
 
     if args.batch:
+        auto_context_enabled = bool(config.get("auto_context_enabled", True)) and not args.no_auto_context
+        auto_context_limit = args.auto_context_limit if args.auto_context_limit > 0 else int(config.get("auto_context_history_limit", 5))
+        auto_context_max_chars = (
+            args.auto_context_max_chars if args.auto_context_max_chars > 0 else int(config.get("auto_context_max_chars", 4000))
+        )
+        try:
+            effective_context_file, auto_context_generated = compose_context_file(
+                repo_root=repo_root,
+                task=task or "batch delegation run",
+                explicit_context_file=args.context_file,
+                auto_context_enabled=auto_context_enabled,
+                auto_context_history_limit=auto_context_limit,
+                auto_context_max_chars=auto_context_max_chars,
+            )
+        except FileNotFoundError as exc:
+            print(f"error: {exc}", flush=True)
+            return 2
+        if auto_context_generated and not args.quick:
+            print(f"🧠 Auto context prepared: {effective_context_file}", flush=True)
+
         use_cache = not args.no_cache
         if args.parallel:
             try:
                 from parallel_batch import run_parallel_batch
                 return run_parallel_batch(
-                    args.batch, args.context_file, args.task_class, config, routing, repo_root,
+                    args.batch, effective_context_file, args.task_class, config, routing, repo_root,
                     workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False,
                     safety_check=args.safety_check, strict_safety=args.strict_safety,
                     max_workers=args.max_workers, timeout_seconds=args.batch_timeout
@@ -1346,12 +1594,32 @@ def main() -> int:
                 print("error: parallel batch module not available. Install requirements or use sequential batch mode.", flush=True)
                 return 2
         else:
-            return run_batch(args.batch, args.context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_engine_override=fallback_engine_override, fallback_provider_override=args.fallback_provider_legacy, fallback_model_override=args.fallback_model, fallback_pi_provider_override=args.fallback_pi_provider)
+            return run_batch(args.batch, effective_context_file, args.task_class, config, routing, repo_root, workspace=args.workspace, dry_run=args.dry_run, quick=args.quick, interactive=False, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_engine_override=fallback_engine_override, fallback_provider_override=args.fallback_provider_legacy, fallback_model_override=args.fallback_model, fallback_pi_provider_override=args.fallback_pi_provider)
+
+    auto_context_enabled = bool(config.get("auto_context_enabled", True)) and not args.no_auto_context
+    auto_context_limit = args.auto_context_limit if args.auto_context_limit > 0 else int(config.get("auto_context_history_limit", 5))
+    auto_context_max_chars = (
+        args.auto_context_max_chars if args.auto_context_max_chars > 0 else int(config.get("auto_context_max_chars", 4000))
+    )
+    try:
+        effective_context_file, auto_context_generated = compose_context_file(
+            repo_root=repo_root,
+            task=task,
+            explicit_context_file=args.context_file,
+            auto_context_enabled=auto_context_enabled,
+            auto_context_history_limit=auto_context_limit,
+            auto_context_max_chars=auto_context_max_chars,
+        )
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", flush=True)
+        return 2
+    if auto_context_generated and not args.quick:
+        print(f"🧠 Auto context prepared: {effective_context_file}", flush=True)
 
     save_task_to_history(repo_root, task)
 
     use_cache = not args.no_cache
-    rc = run_delegate(task, args.context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick, interactive=args.interactive, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_engine_override=fallback_engine_override, fallback_provider_override=args.fallback_provider_legacy, fallback_model_override=args.fallback_model, fallback_pi_provider_override=args.fallback_pi_provider)
+    rc = run_delegate(task, effective_context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick, interactive=args.interactive, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_engine_override=fallback_engine_override, fallback_provider_override=args.fallback_provider_legacy, fallback_model_override=args.fallback_model, fallback_pi_provider_override=args.fallback_pi_provider)
 
     if rc == 0 and not args.quick and not args.dry_run:
         print(f"\n✅ Task completed via Devin wrapper. Run 'dd --stats' for telemetry.", flush=True)

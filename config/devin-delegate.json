@@ -31,6 +31,9 @@
     }
   },
   "fallback_strategy": "priority",
+  "auto_context_enabled": true,
+  "auto_context_history_limit": 5,
+  "auto_context_max_chars": 4000,
   "max_timeout_seconds": 600,
   "large_repo_threshold_files": 10000,
   "large_repo_threshold_mb": 500,

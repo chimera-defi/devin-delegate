@@ -20,6 +20,9 @@ from delegate import (
     call,
     default_model_for_engine,
     resolve_fallback_settings,
+    build_auto_context_text,
+    compose_context_file,
+    run_subagent_check,
 )
 
 
@@ -268,6 +271,85 @@ class TestDefaultModelForEngine:
     def test_uses_builtin_default_when_missing(self):
         config = {"fallback_providers": {}}
         assert default_model_for_engine(config, "codex", "fallback-model") == "gpt-5.5"
+
+
+class TestAutoContext:
+    """Test auto-context composition for follow-up delegations."""
+
+    def test_build_auto_context_from_recent_history(self, tmp_path):
+        history_dir = tmp_path / "artifacts" / "devin-delegate"
+        history_dir.mkdir(parents=True, exist_ok=True)
+        history_path = history_dir / "history.jsonl"
+        history_path.write_text(
+            "\n".join(
+                [
+                    json.dumps({"task": "first task", "timestamp": "2026-05-19T00:00:00+00:00"}),
+                    json.dumps({"task": "second task", "timestamp": "2026-05-19T01:00:00+00:00"}),
+                    json.dumps({"task": "third task", "timestamp": "2026-05-19T02:00:00+00:00"}),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        text = build_auto_context_text(tmp_path, "new task", history_limit=2, max_chars=1000)
+        assert "Auto Context From Recent Delegations" in text
+        assert "second task" in text
+        assert "third task" in text
+        assert "first task" not in text
+
+    def test_compose_context_file_combines_user_and_auto(self, tmp_path):
+        user_context = tmp_path / "user-context.md"
+        user_context.write_text("custom context details", encoding="utf-8")
+        history_dir = tmp_path / "artifacts" / "devin-delegate"
+        history_dir.mkdir(parents=True, exist_ok=True)
+        history_path = history_dir / "history.jsonl"
+        history_path.write_text(
+            json.dumps({"task": "prior task", "timestamp": "2026-05-19T03:00:00+00:00"}) + "\n",
+            encoding="utf-8",
+        )
+
+        out_path, generated = compose_context_file(
+            repo_root=tmp_path,
+            task="current task",
+            explicit_context_file=str(user_context),
+            auto_context_enabled=True,
+            auto_context_history_limit=5,
+            auto_context_max_chars=1000,
+        )
+        assert generated is True
+        assert out_path is not None
+        content = Path(out_path).read_text(encoding="utf-8")
+        assert "## User Context File" in content
+        assert "custom context details" in content
+        assert "## Auto Context From Recent Delegations" in content
+        assert "prior task" in content
+
+
+class TestSubagentCheck:
+    """Test explicit subagent usability check path."""
+
+    def test_subagent_check_reports_required_ok(self, tmp_path):
+        config = {
+            "auto_context_enabled": False,
+            "auto_context_history_limit": 5,
+            "auto_context_max_chars": 4000,
+        }
+
+        with patch("delegate.shutil.which") as which_mock, patch("delegate.devin_auth_ok") as auth_mock, patch(
+            "delegate.build_envelope"
+        ) as envelope_mock:
+            which_mock.side_effect = lambda name: "/usr/bin/" + name if name in ("devin", "codex", "anthropic") else None
+            auth_mock.return_value = True
+            envelope_mock.return_value = {
+                "goal": "x",
+                "task_class": "implement",
+                "constraints": {},
+                "acceptance": ["a"],
+                "output_schema": {"required_sections": ["Result"]},
+            }
+            rc = run_subagent_check(config, tmp_path)
+
+        assert rc == 0
 
 
 if __name__ == "__main__":
