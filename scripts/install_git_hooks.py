@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -19,40 +20,47 @@ except ModuleNotFoundError:  # pragma: no cover
 
 HOOK_NAME = "pre-commit"
 HOOK_MARKER = "# devin-delegate bypass gate"
+HOOK_BLOCK_START = "# >>> devin-delegate bypass gate >>>"
+HOOK_BLOCK_END = "# <<< devin-delegate bypass gate <<<"
+FINAL_EXIT_RE = re.compile(r"^\s*exit\s+0(?:\s+#.*)?\s*$")
 
 
-def hook_script(skill_root: str) -> str:
-    return f"""#!/usr/bin/env bash
+def hook_block(skill_root: str) -> str:
+    return f"""{HOOK_BLOCK_START}
 {HOOK_MARKER}
 # Blocks commits if raw Devin calls bypassing the wrapper were detected in this repo.
 
-set -euo pipefail
-
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 SKILL_ROOT="{skill_root}"
-BYPASS_OUT=$("$SKILL_ROOT/scripts/detect_bypass.py" --workspace-root "$REPO_ROOT" --repo "$REPO_ROOT" --days 1 --nudge 2>&1)
-BYPASS_COUNT=$(echo "$BYPASS_OUT" | awk -F': ' '/Raw Devin calls/ {{print $2; exit}}')
-BYPASS_COUNT=${{BYPASS_COUNT:-0}}
-if ! [[ "$BYPASS_COUNT" =~ ^[0-9]+$ ]]; then
-    BYPASS_COUNT=0
-fi
+if [ -x "$SKILL_ROOT/scripts/detect_bypass.py" ]; then
+    BYPASS_OUT=$("$SKILL_ROOT/scripts/detect_bypass.py" --workspace-root "$REPO_ROOT" --repo "$REPO_ROOT" --days 1 --nudge 2>&1 || true)
+    BYPASS_COUNT=$(echo "$BYPASS_OUT" | awk -F': ' '/Raw Devin calls/ {{print $2; exit}}')
+    BYPASS_COUNT=${{BYPASS_COUNT:-0}}
+    case "$BYPASS_COUNT" in
+        ''|*[!0-9]*) BYPASS_COUNT=0 ;;
+    esac
 
-if [ "$BYPASS_COUNT" -gt 0 ]; then
-    echo ""
-    echo "COMMIT BLOCKED by devin-delegate bypass gate"
-    echo ""
-    echo "$BYPASS_OUT"
-    echo ""
-    echo "Fix: re-run your tasks through the wrapper before committing:"
-    echo "  devin-delegate --task \"...\""
-    echo ""
-    echo "To bypass this check (not recommended):"
-    echo "  git commit --no-verify"
-    exit 1
+    if [ "$BYPASS_COUNT" -gt 0 ]; then
+        echo ""
+        echo "COMMIT BLOCKED by devin-delegate bypass gate"
+        echo ""
+        echo "$BYPASS_OUT"
+        echo ""
+        echo "Fix: re-run your tasks through the wrapper before committing:"
+        echo "  devin-delegate --task \\\"...\\\""
+        echo ""
+        echo "To bypass this check (not recommended):"
+        echo "  git commit --no-verify"
+        exit 1
+    fi
 fi
-
-exit 0
+{HOOK_BLOCK_END}
 """
+
+
+def hook_script(skill_root: str) -> str:
+    block = hook_block(skill_root).strip("\n")
+    return f"#!/usr/bin/env bash\n\n{block}\n"
 
 
 def resolve_hooks_dir(repo_path: Path) -> tuple[Path, str]:
@@ -84,6 +92,63 @@ def resolve_hooks_dir(repo_path: Path) -> tuple[Path, str]:
     return repo_path / hooks, "configured-relative"
 
 
+def strip_managed_block(existing: str) -> str:
+    managed = re.compile(
+        rf"{re.escape(HOOK_BLOCK_START)}.*?{re.escape(HOOK_BLOCK_END)}\n?",
+        flags=re.DOTALL,
+    )
+    without_managed = managed.sub("", existing)
+    if without_managed != existing:
+        return without_managed
+
+    if HOOK_MARKER not in existing:
+        return existing
+
+    # Legacy block format (marker-only) inserted by older versions.
+    lines = existing.splitlines(keepends=True)
+    marker_index = next((i for i, line in enumerate(lines) if HOOK_MARKER in line), None)
+    if marker_index is None:
+        return existing
+
+    start = marker_index
+    if marker_index > 0 and lines[marker_index - 1].lstrip().startswith("#!/"):
+        start = marker_index - 1
+    while start > 0 and not lines[start - 1].strip():
+        start -= 1
+
+    end = len(lines) - 1
+    for i in range(marker_index, len(lines)):
+        if lines[i].strip() == "exit 0" and all(not trailing.strip() for trailing in lines[i + 1 :]):
+            end = i
+            break
+
+    legacy_segment = "".join(lines[start : end + 1])
+    if "COMMIT BLOCKED by devin-delegate bypass gate" not in legacy_segment:
+        return existing
+
+    return "".join(lines[:start] + lines[end + 1 :])
+
+
+def upsert_hook_content(existing: str, skill_root: str) -> str:
+    block = hook_block(skill_root).strip("\n")
+    base = strip_managed_block(existing)
+    if not base.strip():
+        return hook_script(skill_root)
+
+    lines = base.splitlines(keepends=True)
+    last_nonempty = next((i for i in range(len(lines) - 1, -1, -1) if lines[i].strip()), None)
+
+    if last_nonempty is not None and FINAL_EXIT_RE.match(lines[last_nonempty].strip()):
+        before = "".join(lines[:last_nonempty]).rstrip("\n")
+        after = "".join(lines[last_nonempty:]).lstrip("\n")
+        if before:
+            return f"{before}\n\n{block}\n\n{after}"
+        return f"{block}\n\n{after}"
+
+    body = base.rstrip("\n")
+    return f"{body}\n\n{block}\n"
+
+
 def install_hook(repo_path: Path, skill_root: Path, dry_run: bool = False) -> dict:
     hooks_dir, mode = resolve_hooks_dir(repo_path)
     if not hooks_dir.exists() and not dry_run:
@@ -91,13 +156,10 @@ def install_hook(repo_path: Path, skill_root: Path, dry_run: bool = False) -> di
 
     hook_path = hooks_dir / HOOK_NAME
     existing = hook_path.read_text(encoding="utf-8", errors="ignore") if hook_path.exists() else ""
+    new_hook = upsert_hook_content(existing, str(skill_root))
 
-    if HOOK_MARKER in existing:
+    if existing == new_hook:
         return {"repo": str(repo_path), "status": "already_installed", "action": "skipped", "hook_mode": mode}
-
-    new_hook = hook_script(str(skill_root))
-    if existing.strip():
-        new_hook = existing.rstrip("\n") + "\n\n" + new_hook
 
     if dry_run:
         return {"repo": str(repo_path), "status": "would_install", "action": "dry_run", "hook_mode": mode}
