@@ -18,3 +18,9 @@ type(scope): subject [Agent: <MODEL NAME>]
 - Canonical commit hook is `.githooks/commit-msg`.
 - Enable once per clone:
   - `git config core.hooksPath .githooks`
+
+<!-- devin-delegate:begin -->
+All Devin subagent calls MUST route through devin-delegate.
+Direct 'devin --print' calls bypass telemetry, fallback, and workspace context.
+Use: devin-delegate --task '...' --workspace /path/to/repo
+<!-- devin-delegate:end -->

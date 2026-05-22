@@ -176,8 +176,12 @@ Both skills share the same envelope/fallback/telemetry architecture. Choose base
 | **Token budget** | 1200–2000 output tokens | 500–1200 output tokens |
 | **Base timeout** | 300s (max 600s w/ scaling) | 120s (max 600s w/ scaling) |
 | **Best for** | Implementation, debugging, browser/UI tasks | Search, summarize, lightweight drafting |
-| **Fallback** | Codex GPT-5.5 | Codex gpt-5.3 |
+| **Fallback** | Codex gpt-5.5 | Codex gpt-5.3 |
 
 Use `kimi-delegate` (`/kimi-delegate`) for cheap bounded research. Use `devin-delegate` when you need browser, shell sandbox, or full implementation.
 
 See also: `/root/.openclaw/workspace/dev/kimi-delegate-skill/`
+
+---
+Read references/architecture.md for architecture and integration guidance.
+Read references/skill-propagation-process.md for workspace propagation steps.
