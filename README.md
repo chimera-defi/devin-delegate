@@ -1,79 +1,67 @@
 # Devin Delegate
 
-A structured delegation skill for routing bounded coding and research tasks through [Devin](https://devin.ai) (Cognition AI) as a sub-agent with envelope-based task packaging, workspace context injection, fallback routing, and telemetry.
-
-## Overview
-
-Devin Delegate provides a robust interface for delegating tasks to Devin while maintaining guardrails, tracking performance, and providing automatic fallback to alternative providers when Devin is unavailable or encounters errors.
-
-## Why Devin Delegate?
-
-**Cost-Effective Intelligence Routing**: Devin's monthly plan costs $200/month. Devin Delegate maximizes your ROI by:
-- **Primary Path**: Use Devin for complex tasks requiring its full browser/shell sandbox capabilities
-- **Smart Fallback**: Automatically route to Codex GPT-5.5 when Devin times out or is unavailable
-- **Massive Savings**: Codex GPT-5.5 provides high-quality fallback at a fraction of Devin's cost
-- **Zero Downtime**: Your workflow continues even when Devin has hiccups
-
-**Production-Grade Reliability**: Built for teams who need consistent, predictable AI delegation with enterprise-grade telemetry and safety checks.
-
-## Features
-
-- **Structured Envelopes**: Tasks are packaged with explicit goals, scope, constraints, and acceptance criteria
-- **Workspace Context**: Automatic injection of repository context for better task execution
-- **Auto Follow-Up Context**: Recent delegated task history is stitched into new runs by default (can be disabled)
-- **Smart Fallback**: Automatic routing to Codex GPT-5.5 when Devin fails (timeout, auth errors, unavailability)
-- **Cost Optimization**: Fallback to Codex GPT-5.5 at significant cost savings vs Devin's $200/mo plan
-- **Telemetry**: Comprehensive tracking of calls, latency, fallback rates, and token savings
-- **Quality Review Loop**: Telemetry-driven health scoring with prioritized recommendations
-- **Timeout Tuning**: Data-driven timeout multiplier recommendations by repo scale and task class
-- **Task Templates**: Pre-built templates for common task patterns
-- **Batch Mode**: Process multiple tasks sequentially
-- **Auto-scaling Timeouts**: Timeouts adjust based on repository size and complexity
-- **Health Checks**: Pre-flight validation of Devin availability and authentication
-
-## Installation
-
-```bash
-# Clone this skill to your .agents/skills directory
-cd /root/.agents/skills/devin-delegate
-
-# Run setup script (installs wrappers + workspace skill links)
-./setup.sh
-```
-
-`setup.sh` also configures `core.hooksPath=.githooks` so commit messages are validated for
-agent tagging and human co-author attribution, and installs:
-- `devin-delegate`
-- `devin-delegate-manage`
-- `dd` (if not already claimed by another binary)
-
-## Requirements
-
-- `devin` CLI tool (https://docs.devin.ai)
-- `codex` CLI tool (for fallback)
-- Python 3.8+
-- Git repository (for workspace context)
+Structured delegation for routing bounded coding and research tasks through [Devin](https://devin.ai) with envelope-based packaging, workspace context, smart fallback, and telemetry.
 
 ## Quick Start
 
 ```bash
-# Basic delegation
-devin-delegate "implement a JWT auth middleware in Express"
+# Install
+cd /root/.agents/skills/devin-delegate && ./setup.sh
 
-# With workspace specification
-devin-delegate --task "debug the failing test suite" --workspace /path/to/repo
+# Basic usage
+devin-delegate "implement JWT auth middleware in Express"
 
-# Using a template
-devin-delegate --template implement-feature --var feature="rate limiter"
+# With workspace
+devin-delegate --task "debug failing tests" --workspace /path/to/repo
 
 # Environment check
 devin-delegate --check
 
-# Subagent usability chain check
-devin-delegate --subagent-check
-
 # View stats
 devin-delegate --stats
+```
+
+## Why Use This?
+
+- **Cost Optimization**: Devin costs $200/month. Smart fallback to Codex GPT-5.5 saves money when Devin times out or is unavailable
+- **Zero Downtime**: Automatic fallback means your workflow continues even when Devin has issues
+- **Production-Grade**: Structured envelopes, workspace context, telemetry, and safety checks
+- **Agent-Friendly**: Never call `devin` directly — use this wrapper for proper delegation
+
+## Installation
+
+```bash
+cd /root/.agents/skills/devin-delegate && ./setup.sh
+```
+
+Installs: `devin-delegate`, `devin-delegate-manage`, `dd` (shorthand)
+
+## Requirements
+
+- `devin` CLI (https://docs.devin.ai)
+- `codex` CLI (for fallback)
+- Python 3.8+
+- Git repository
+
+## Common Commands
+
+```bash
+# Basic delegation
+devin-delegate "implement JWT auth middleware in Express"
+
+# With workspace
+devin-delegate --task "debug failing tests" --workspace /path/to/repo
+
+# Using templates
+devin-delegate --template implement-feature --var feature="rate limiter"
+
+# Environment checks
+devin-delegate --check              # Environment validation
+devin-delegate --subagent-check     # Full delegation readiness check
+
+# Stats and history
+devin-delegate --stats              # 14-day usage statistics
+devin-delegate --history            # Recent task history
 ```
 
 ## Usage
@@ -83,38 +71,33 @@ devin-delegate --stats
 ```bash
 devin-delegate [OPTIONS] [TASK]
 
-Options:
-  --task TEXT              Specific task description (overrides positional argument)
-  --workspace PATH         Repository workspace path (default: current git repo)
+Core options:
+  --task TEXT              Task description (overrides positional arg)
+  --workspace PATH         Repository path (default: current git repo)
   --task-class TEXT        Task class: research, implement, debug, review, browser
-  --context-file PATH      Additional context file to include in envelope
-  --no-auto-context        Disable automatic context carryover from recent delegation history
-  --auto-context-limit N   Number of recent tasks to include for auto context
-  --auto-context-max-chars Max chars for auto context payload
-  --template TEXT          Use a predefined task template
-  --var KEY=VALUE          Variables for template substitution
+  --template TEXT          Use predefined task template
+  --var KEY=VALUE          Template variables
+
+Context & behavior:
+  --no-auto-context        Disable automatic context from recent tasks
   --timeout-override SEC   Override computed timeout
-  --dry-run                Show envelope without executing
-  --print-envelope         Print the envelope JSON
-  --quick                  Skip progress indicators (faster for scripts)
-  --check                  Run environment and health checks
-  --subagent-check         Verify subagent usability chain (Devin auth + fallback + envelope smoke)
-  --stats                  Show usage statistics (14d window)
-  --history                Show recent task history
+  --interactive            Review envelope before execution
+  --safety-check           Run safety checks before delegation
+
+Diagnostics:
+  --check                  Environment and health checks
+  --subagent-check         Full delegation readiness validation
+  --stats                  Usage statistics (14-day window)
+  --history                Recent task history
   --templates              List available templates
+
+Advanced:
   --batch FILE             Process tasks from JSONL file
-  --cost                   Show estimated cost before execution
-  --interactive            Interactive mode (prompt for confirmation)
-  --safety-check           Run safety sandbox checks before delegation
-  --strict-safety          Strict mode: safety warnings are treated as errors
-  --fallback-engine TEXT   Override fallback engine (codex, kimi, claude, anthropic, pi)
+  --fallback-engine TEXT   Override fallback (codex, kimi, claude, pi)
   --fallback-model TEXT    Override fallback model
-  --fallback-pi-provider   Provider passed to pi fallback (e.g., kimi-coding, openai)
 ```
 
 ### Task Classes
-
-Tasks are classified to determine routing and timeouts:
 
 - **research**: Documentation, best practices, exploration
 - **implement**: Feature implementation, code changes
@@ -124,224 +107,121 @@ Tasks are classified to determine routing and timeouts:
 
 ### Templates
 
-Pre-built templates for common patterns:
-
 ```bash
-# List all templates
-devin-delegate --templates
-
-# Use a template
-devin-delegate --template research-best-practices --var topic="React Server Components"
-
-# Available templates:
-# - research-best-practices: Research best practices for a technology
-# - implement-feature: Implement a scoped feature or component
-# - debug-error: Debug a specific error or failing behavior
-# - review-pr: Review changes for quality and risks
-# - browser-test: Test a web page or user flow
-# - quick-audit: Quick health audit of the repository
-# - migrate-deps: Migrate dependencies to newer versions
-# - security-audit: Security-focused code review
-# - perf-optimize: Performance optimization for specific components
-# - add-tests: Add comprehensive tests for existing code
+devin-delegate --templates                                    # List all
+devin-delegate --template implement-feature --var feature="JWT middleware"
 ```
+
+Available: `research-best-practices`, `implement-feature`, `debug-error`, `review-pr`, `browser-test`, `quick-audit`, `migrate-deps`, `security-audit`, `perf-optimize`, `add-tests`
 
 ### Batch Mode
 
-Process multiple tasks from a JSONL file:
-
 ```bash
-# Create tasks.jsonl
 echo '{"task": "implement feature A", "task_class": "implement", "workspace": "/path/to/repo"}' > tasks.jsonl
-echo '{"task": "debug test failure", "task_class": "debug", "workspace": "/path/to/repo"}' >> tasks.jsonl
-
-# Run batch
 devin-delegate --batch tasks.jsonl
 ```
 
 ### Safety Checks
 
-The skill includes a safety sandbox that runs pre-delegation checks:
-
 ```bash
-# Run with safety checks enabled
-devin-delegate --safety-check "delete all logs"
-
-# Strict mode: warnings are treated as errors
-devin-delegate --safety-check --strict-safety "format the disk"
+devin-delegate --safety-check "delete all logs"              # Run safety checks
+devin-delegate --safety-check --strict-safety "format disk" # Warnings as errors
 ```
 
-Safety checks include:
-- **Task content analysis**: Detects dangerous patterns (rm -rf, DROP TABLE, etc.)
-- **Workspace validation**: Ensures workspace is safe and writable
-- **Git state checks**: Warns about uncommitted changes and protected branches
-- **Sensitive file detection**: Scans for .env, .pem, credentials, etc.
-- **Disk space verification**: Ensures sufficient disk space for operations
+Checks: dangerous patterns (rm -rf, DROP TABLE), workspace validation, git state, sensitive files (.env, .pem), disk space
 
 ### Cost Estimation
 
-Improved cost estimation using actual provider pricing:
-
 ```bash
-# Show cost breakdown after delegation
-devin-delegate --cost "implement a feature"
+devin-delegate --cost "implement a feature"  # Show cost breakdown
 ```
 
-Cost estimation uses:
-- **Provider-specific pricing**: Different rates for Devin, Codex, etc.
-- **Model-specific rates**: Accurate pricing per model variant
-- **Parent cost comparison**: Estimates cost if parent agent handled the task
-- **Savings calculation**: Shows percentage and USD savings
-
-Configuration is in `config/pricing.json`.
-
-```json
-{
-  "timeout_seconds": 600,
-  "max_retries": 2,
-  "workspace_default": "/custom/workspace/path"
-}
-```
+Uses provider-specific pricing from `config/pricing.json`
 
 ## Architecture
 
 ### Envelope Structure
 
-Each task is packaged into a structured envelope:
-
 ```json
 {
   "goal": "Task description",
   "scope": "Boundaries and constraints",
-  "constraints": ["Limitations and requirements"],
+  "constraints": ["Limitations"],
   "acceptance_criteria": ["Success conditions"],
-  "output_schema": {
-    "required_sections": ["Result", "Evidence", "Next steps"]
-  },
   "task_class": "implement"
 }
 ```
 
 ### Fallback Strategy
 
-| Failure Type        | Behavior                              |
-|---------------------|---------------------------------------|
-| Clarification request | Try Codex guidance first, then Claude guidance, before asking human |
-| Timeout             | Retry with doubled timeout, then fallback |
-| Auth / Session      | Show resume steps, no fallback        |
-| Devin Unavailable   | Fallback to selected engine (default Codex); if Codex fails, try Claude before human escalation |
-| Schema Invalid      | Retry once, then fallback             |
+| Failure Type        | Behavior |
+|---------------------|----------|
+| Clarification request | Codex guidance → Claude guidance → human |
+| Timeout             | Retry with doubled timeout → fallback |
+| Auth / Session      | Show resume steps, no fallback |
+| Devin Unavailable   | Fallback to Codex → Claude → human |
+| Schema Invalid      | Retry once → fallback |
 
 ### Telemetry
 
-All delegations are tracked with:
-
-- Timestamp and task description
-- Provider used (Devin vs fallback)
-- Latency and retry count
-- Fallback reason
-- Estimated token savings
-- Repository metadata
-
-View telemetry:
-
 ```bash
-# Summary statistics
-devin-delegate --stats
-
-# Recent history
-devin-delegate --history
-
-# Raw telemetry data
-cat artifacts/devin-delegate/events.jsonl
+devin-delegate --stats              # Summary statistics
+devin-delegate --history            # Recent history
+cat artifacts/devin-delegate/events.jsonl  # Raw telemetry
 ```
+
+Tracks: timestamp, provider, latency, retry count, fallback reason, token savings, repo metadata
 
 ## Safety & Bypass Detection
 
-The skill includes bypass detection to ensure tasks go through the proper delegation envelope:
-
 ```bash
-# Check for raw devin calls that skipped the wrapper
-./scripts/detect_bypass.py --nudge
+./scripts/detect_bypass.py --nudge              # Check for raw devin calls
+./scripts/detect_bypass.py --watch              # Continuous watch mode
+./scripts/detect_bypass.py --output report.json # Generate report
 
-# Continuous watch mode
-./scripts/detect_bypass.py --watch
-
-# Generate full report
-./scripts/detect_bypass.py --output report.json
-
-# Workspace propagation + compliance audits
-devin-delegate-manage workspace-install
-devin-delegate-manage workspace-audit
-devin-delegate-manage usage-audit
-devin-delegate-manage workspace-sync   # alias: `measure`
-
-# CI/pass-fail quality gate
-devin-delegate-manage ci-gate --days 7 --bypass-threshold 20 --fallback-threshold 40
-
-# Install commit-time bypass gate hooks across repos
-devin-delegate-manage git-hook
-
-# Analyze timeout behavior and review quality trends
-devin-delegate-manage tune --days 14
-devin-delegate-manage review --scope global --json
-devin-delegate-manage summarize
+devin-delegate-manage workspace-install         # Install skill across repos
+devin-delegate-manage workspace-audit           # Audit skill propagation
+devin-delegate-manage usage-audit               # Audit wrapper vs raw usage
+devin-delegate-manage ci-gate                   # CI quality gate
+devin-delegate-manage git-hook                  # Install commit hooks
 ```
 
-## Comparison: Devin vs Kimi Delegate
+## Comparison: devin-delegate vs kimi-delegate
 
 | Dimension        | devin-delegate          | kimi-delegate               |
 |------------------|-------------------------|-----------------------------|
 | Speed            | ~14s (sandbox warm)     | ~45s (model inference)      |
-| Task Classes     | research, implement, debug, review, browser | search, summarize, draft, review, implementation-lite |
 | Sandbox          | Full (browser, shell, file editing) | CLI-only |
 | Token Budget     | 1200–2000 output tokens | 500–1200 output tokens      |
 | Base Timeout     | 300s (max 600s)         | 120s (max 600s)             |
 | Best For         | Implementation, debugging, browser/UI | Search, summarize, lightweight drafting |
-| Fallback         | Codex GPT-5.5 (cost-optimized)           | Codex gpt-5.3               |
 
-Use `devin-delegate` when you need browser, shell sandbox, or full implementation.
-Use `kimi-delegate` for cheap bounded research tasks.
+Use `devin-delegate` for browser/shell sandbox or full implementation.
+Use `kimi-delegate` for cheap bounded research.
 
 ## Troubleshooting
 
-### Authentication Issues
-
 ```bash
-# Check auth status
-devin auth login
-
-# Verify delegation setup
-devin-delegate --check
+devin auth login                                    # Check auth status
+devin-delegate --check                              # Verify delegation setup
+devin-delegate --stats                              # Check fallback reason
+devin-delegate --task "..." --timeout-override 900  # Manual timeout override
 ```
 
-### Timeout Issues
+Common fallback causes: Devin unavailable, auth expired, repo too large, network issues
 
-Large repositories automatically get extended timeouts. Manual override:
+## MCP Server
 
-```bash
-devin-delegate --task "..." --timeout-override 900
-```
-
-For pi fallback routing:
+Exposes devin-delegate as MCP tools for integration with MCP-compatible systems.
 
 ```bash
-devin-delegate --task "..." --fallback-engine pi --fallback-model k2p6 --fallback-pi-provider kimi-coding
+pip install mcp
+python3 scripts/mcp_server.py
 ```
 
-### Fallback Triggered
+Available tools: `delegate_task`, `get_telemetry`, `get_cache_stats`, `clear_cache`, `health_check`, `batch_delegate`
 
-Check telemetry for fallback reason:
-
-```bash
-devin-delegate --stats
-```
-
-Common causes:
-- Devin service unavailable
-- Authentication expired
-- Repository too large for default timeout
-- Network issues
+See [MCP_SERVER.md](MCP_SERVER.md) for full documentation.
 
 ## Development
 
@@ -349,44 +229,13 @@ Common causes:
 
 ```
 devin-delegate/
-├── README.md
-├── CHANGELOG.md             # Version history
-├── SKILL.md                 # Skill metadata
-├── setup.sh                 # Installation script
-├── config/
-│   ├── devin-delegate.json  # Main configuration
-│   ├── routing.json         # Task class routing
-│   └── pricing.json         # Provider pricing configuration
-├── prompts/
-│   └── templates.json       # Task templates
-├── scripts/
-│   ├── delegate.py          # Main delegation logic
-│   ├── fallback.py          # Fallback provider handling
-│   ├── plan_prompt.py       # Envelope generation
-│   ├── devin_delegate_telemetry.py  # Telemetry tracking
-│   ├── env_check.py         # Environment validation
-│   ├── detect_bypass.py     # Bypass detection
-│   ├── repo_scan.py         # Workspace repo/worktree discovery helpers
-│   ├── install_workspace_skill.py # Install devin-delegate into sibling repos
-│   ├── audit_workspace_skills.py  # Audit skill/doc propagation coverage
-│   ├── audit_workspace_usage.py   # Audit actual wrapper vs raw devin usage
-│   ├── install_git_hooks.py # Install pre-commit bypass gate hooks across repos
-│   ├── session_nudge.py     # Session-start bypass/adoption nudge
-│   ├── ci_gate.py           # CI gate on bypass-rate threshold
-│   ├── tune_timeouts.py     # Timeout tuning recommendations from telemetry
-│   ├── review_devin_delegate.py   # Health score + prioritized findings
-│   ├── summarize_devin_delegate.py # Trend summary from recent artifacts
-│   ├── devin-shim.bash      # Shell shim for wrapper-first interception
-│   ├── devin-delegate-manage.sh   # Orchestrator for workspace ops
-│   ├── cost_estimator.py    # Cost estimation utilities
-│   └── safety_sandbox.py    # Safety sandbox checks
-└── tests/
-    ├── test_delegate.py     # Unit tests for delegate.py
-    ├── pytest.ini           # Pytest configuration
-    └── requirements.txt     # Test dependencies
+├── config/              # Configuration files
+├── prompts/             # Task templates
+├── scripts/             # Main delegation logic and utilities
+└── tests/               # Test suite
 ```
 
-### Adding New Templates
+### Adding Templates
 
 Edit `prompts/templates.json`:
 
@@ -394,7 +243,6 @@ Edit `prompts/templates.json`:
 {
   "my-template": {
     "task_class": "implement",
-    "description": "Template description",
     "template": "Task with {{variable}} substitution"
   }
 }
@@ -403,46 +251,40 @@ Edit `prompts/templates.json`:
 ### Running Tests
 
 ```bash
-# Run test suite
-python3 -m pytest tests/
-
-# Run with verbose output
 python3 -m pytest tests/ -v
-
-# Run specific test class
-python3 -m pytest tests/test_delegate.py::TestEstimateTokens -v
 ```
 
-The test suite covers:
-- Token estimation
-- Error classification
-- Timeout computation
-- Repository scale estimation
-- Output validation
-- Template loading and structure
+Covers: token estimation, error classification, timeout computation, repo scale estimation, output validation, templates
 
 ## License
 
-This skill is part of the Devin for Terminal ecosystem.
+Part of the Devin for Terminal ecosystem.
 
 ## Contributing
 
-Contributions welcome! Areas for future improvement:
-- Parallel batch processing
-- Result caching for similar tasks
-- Telemetry dashboard (HTML/CLI visualization)
-- Additional fallback providers (Kimi, other agents)
-- GitHub Actions integration templates
-- MCP server for exposing delegation as an MCP tool
-- Enhanced safety patterns and heuristics
-
-## Version History
-
-See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+Areas for improvement: parallel batch processing, telemetry dashboard, additional fallback providers, GitHub Actions integration, enhanced safety patterns.
 
 ## Support
 
-For issues or questions:
-- Check `devin-delegate --check` for environment issues
-- Review telemetry with `devin-delegate --stats`
-- Consult SKILL.md for detailed usage patterns
+- `devin-delegate --check` - Environment issues
+- `devin-delegate --stats` - Usage telemetry
+- [SKILL.md](SKILL.md) - Detailed usage patterns
+- [CHANGELOG.md](CHANGELOG.md) - Version history
+
+## For Agents
+
+**When to use**: Delegate tasks that benefit from Devin's browser/shell sandbox or require full implementation capabilities.
+
+**When to skip**: Tiny local edits, tasks requiring full-repo reasoning that can't be scoped, tasks with secrets/sensitivity that must stay local.
+
+**Critical rule**: Never call `devin` CLI directly — always use `devin-delegate` to ensure proper envelope, workspace context, fallback, and telemetry.
+
+**Pre-flight checklist**:
+1. Run `devin-delegate --subagent-check` to validate delegation readiness
+2. Run `devin-delegate --safety-check --task "..."` for dangerous operations
+3. Use `--interactive` to review envelope before execution for critical tasks
+
+**Command pattern**:
+```bash
+devin-delegate --task "..." --workspace /path/to/repo --task-class implement
+```
