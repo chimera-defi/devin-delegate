@@ -50,6 +50,8 @@ devin-delegate "implement JWT auth middleware in Express"
 | `devin-delegate --suggest` | Auto-suggest a task from current git status |
 | `devin-delegate --last` | Re-run the previous task |
 | `devin-delegate --retry` | Retry the last failed task |
+| `devin-delegate --templates` | List available task templates |
+| `devin-delegate --health` | Quick health check and exit |
 | `devin-delegate-manage workspace-install` | Install skill across all workspace repos |
 | `devin-delegate-manage workspace-audit` | Audit skill propagation |
 | `devin-delegate-manage usage-audit` | Detect raw devin calls that bypassed the wrapper |
