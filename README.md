@@ -71,19 +71,36 @@ devin-delegate "implement JWT auth middleware in Express"
 | Flag | Description |
 |---|---|
 | `--task TEXT` | Task description (or use positional arg) |
-| `--workspace PATH` | Repo path (default: current git root) |
+| `--workspace PATH` / `-w` | Repo path (default: current git root) |
 | `--task-class TEXT` | `research`, `implement`, `debug`, `review`, `browser` |
 | `--timeout-override SEC` | Override computed timeout |
 | `--fallback-engine TEXT` | Override fallback: `codex`, `kimi`, `claude`, `anthropic`, `pi` |
 | `--fallback-model TEXT` | Override fallback model |
+| `--fallback-pi-provider TEXT` | Provider for `pi` fallback engine (e.g. `kimi-coding`, `openai`) |
 | `--no-auto-context` | Disable automatic context from recent task history |
+| `--auto-context-limit N` | Number of recent tasks to include for auto context (0 = use config) |
+| `--auto-context-max-chars N` | Max chars for auto context payload (0 = use config) |
 | `--safety-check` | Run safety checks before delegation |
 | `--strict-safety` | Treat safety warnings as errors |
 | `--template TEXT` | Use a named task template |
+| `--templates` | List all available task templates |
 | `--var KEY=VALUE` | Template variable (repeatable) |
 | `--parallel` | Enable parallel processing with `--batch` |
+| `--max-workers N` | Parallel batch worker count (default: 4) |
+| `--batch-timeout SEC` | Overall timeout for parallel batch (default: 3600) |
+| `--no-cache` | Disable result caching |
+| `--cache-ttl SEC` | Cache TTL in seconds (default: 86400) |
+| `--cache-stats` | Show cache statistics |
+| `--cache-cleanup` | Clean expired cache entries |
+| `--cache-clear` | Clear all cache entries |
+| `--dashboard` | Show telemetry dashboard in terminal |
+| `--dashboard-html` | Generate HTML telemetry dashboard |
+| `--dashboard-output FILE` | Output file for `--dashboard-html` |
+| `--health` | Quick health check and exit |
 | `--quick` / `-q` | Suppress extra output |
 | `--cost` | Show estimated cost/savings after run |
+
+> **Deprecated:** `--fallback-provider` is a legacy alias for `--fallback-engine`; use `--fallback-engine` instead.
 
 ## How it works
 

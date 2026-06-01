@@ -929,11 +929,11 @@ def run_delegate(
                 sandbox.print_results()
             
             if not summary["passed"]:
-                print(f"\n❌ Safety checks failed. Use --no-safety to bypass or fix the issues.", flush=True)
+                print(f"\n❌ Safety checks failed. Omit --safety-check to skip these checks, or fix the flagged issues.", flush=True)
                 return 128  # Custom exit code for safety check failure
             
             if summary["has_warnings"] and strict_safety:
-                print(f"\n❌ Safety warnings in strict mode. Use --no-strict-safety to proceed.", flush=True)
+                print(f"\n❌ Safety warnings in strict mode. Omit --strict-safety to treat warnings as non-fatal.", flush=True)
                 return 128
         
         health_cache = repo_root / "artifacts" / "devin-delegate" / ".health-cache"
