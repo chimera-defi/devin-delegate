@@ -87,7 +87,7 @@ devin-delegate "implement JWT auth middleware in Express"
 | `--auto-context-max-chars N` | Max characters for auto context payload (0 = from config) |
 | `--parallel` | Enable parallel batch processing with `--batch` |
 | `--max-workers N` | Max parallel workers when `--parallel` is set (default 4) |
-| `--batch-timeout SEC` | Overall timeout for a parallel batch run (default 3600) |
+| `--batch-timeout SEC` | Timeout for `as_completed` iteration in parallel batch; underlying tasks run to completion after it fires (default 3600) |
 | `--health` | Quick health check and exit |
 | `--dashboard` | Show telemetry dashboard in terminal |
 | `--dashboard-html` | Generate HTML telemetry dashboard |
