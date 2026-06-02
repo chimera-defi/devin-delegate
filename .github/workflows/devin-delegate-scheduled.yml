@@ -16,12 +16,14 @@ on:
           - custom
 
 env:
-  DEVIN_DELEGATE_VERSION: '0.2.8'
+  DEVIN_DELEGATE_VERSION: '0.2.9'
 
 jobs:
   scheduled-review:
     name: Scheduled Code Review
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     
     steps:
     - name: Checkout code
@@ -119,6 +121,8 @@ jobs:
     name: Weekly Analysis
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event.inputs.run_type == 'weekly'
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     
     steps:
     - name: Checkout code
