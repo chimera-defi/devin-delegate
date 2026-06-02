@@ -5,9 +5,9 @@
   "timeout_seconds": 300,
   "max_output_tokens": 2000,
   "max_retries": 1,
-  "fallback_engine": "codex",
-  "fallback_provider": "openai",
-  "fallback_model": "gpt-5.5",
+  "fallback_engine": "claude",
+  "fallback_provider": "anthropic",
+  "fallback_model": "claude-sonnet-4-6",
   "fallback_providers": {
     "codex": {
       "enabled": true,
@@ -15,13 +15,14 @@
       "priority": 1
     },
     "kimi": {
-      "enabled": true,
+      "enabled": false,
       "default_model": "kimi-default",
-      "priority": 2
+      "priority": 2,
+      "_note": "Kimi quota exhausted 2026-05-28; re-enable when quota resets"
     },
     "anthropic": {
       "enabled": true,
-      "default_model": "claude-3.5-sonnet",
+      "default_model": "claude-sonnet-4-6",
       "priority": 3
     },
     "pi": {
@@ -41,5 +42,5 @@
   "xlarge_repo_threshold_files": 50000,
   "xlarge_repo_threshold_mb": 1000,
   "xlarge_repo_timeout_multiplier": 3.0,
-  "workspace_default": "/root/.openclaw/workspace"
+  "workspace_default": "/home/agents/workspace"
 }
