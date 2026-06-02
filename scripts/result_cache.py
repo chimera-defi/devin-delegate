@@ -57,8 +57,13 @@ class ResultCache:
         # Normalize the task string
         normalized_task = " ".join(task.lower().split())
         
+        # Compress context if present (take first 500 chars to avoid huge keys)
+        compressed_context = ""
+        if context:
+            compressed_context = context[:500] if len(context) > 500 else context
+        
         # Create a string with all relevant parameters
-        key_string = f"{normalized_task}|{task_class or 'default'}|{context or ''}"
+        key_string = f"{normalized_task}|{task_class or 'default'}|{compressed_context}"
         
         # Generate MD5 hash
         return hashlib.md5(key_string.encode('utf-8')).hexdigest()
