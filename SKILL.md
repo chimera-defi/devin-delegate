@@ -31,8 +31,7 @@ Classify task as `research`, `implement`, `debug`, `review`, or `browser`, and i
 
 - Timeout/provider/schema issues: retry once where supported, then fallback.
 - Auth/session failure: print resume steps, exit code 126, no blind fallback.
-- Clarification request: try Codex guidance, then Claude guidance, then ask human.
-- Always log model, latency, fallback reason, estimated token savings.
+- Clarification: try Codex guidance, then Claude guidance, then ask human. Log model, latency, fallback reason, estimated token savings.
 
 ## Support Commands
 
