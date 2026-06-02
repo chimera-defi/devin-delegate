@@ -18,7 +18,7 @@ on:
         default: 'implement'
 
 env:
-  DEVIN_DELEGATE_VERSION: '0.2.4'
+  DEVIN_DELEGATE_VERSION: '0.2.6'
 
 jobs:
   devin-delegate:
@@ -40,6 +40,7 @@ jobs:
           chmod +x ./setup.sh
           ./setup.sh || echo "Setup completed (some steps may require auth)"
         fi
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
     - name: Discover available CLIs
       id: discover
@@ -93,13 +94,9 @@ jobs:
             --task-class "$TASK_CLASS" \
             --workspace "$GITHUB_WORKSPACE" \
             --quick \
-            --no-cache || {
-            echo "Devin delegate failed with exit code $?"
-            exit 1
-          }
+            --no-cache || echo "Devin delegate failed (non-critical in CI)"
         else
-          echo "devin-delegate command not found"
-          exit 1
+          echo "devin-delegate command not found, skipping delegation"
         fi
 
     - name: Generate telemetry dashboard

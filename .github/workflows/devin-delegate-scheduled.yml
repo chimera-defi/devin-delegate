@@ -16,7 +16,7 @@ on:
           - custom
 
 env:
-  DEVIN_DELEGATE_VERSION: '0.2.4'
+  DEVIN_DELEGATE_VERSION: '0.2.6'
 
 jobs:
   scheduled-review:
@@ -36,6 +36,7 @@ jobs:
           chmod +x ./setup.sh
           ./setup.sh || echo "Setup script failed, continuing..."
         fi
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
     
     - name: Configure authentication
       env:
@@ -132,6 +133,7 @@ jobs:
           chmod +x ./setup.sh
           ./setup.sh || echo "Setup script failed, continuing..."
         fi
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
     
     - name: Generate weekly dashboard
       run: |
