@@ -102,7 +102,72 @@ def load_repo_config(repo_root: Path, config: dict) -> dict:
 
 
 def estimate_tokens(text: str) -> int:
-    return max(1, int(len(text.split()) * 1.3))
+    """Improved token estimation using multiple heuristics."""
+    if not text:
+        return 1  # Maintain backward compatibility
+    
+    # Basic word-based estimation (conservative, maintains backward compatibility)
+    word_count = len(text.split())
+    word_based = max(1, int(word_count * 1.3))
+    
+    # For longer text, use additional heuristics for better accuracy
+    if len(text) > 100:
+        # Character-based estimation (better for code)
+        char_based = max(1, int(len(text) / 4))
+        
+        # Line-based estimation (better for structured text)
+        line_count = len(text.splitlines())
+        line_based = max(1, int(line_count * 10))
+        
+        # Use the average of methods for better accuracy on longer text
+        return int((word_based + char_based + line_based) / 3)
+    
+    return word_based
+
+
+def compress_envelope_content(envelope_text: str, max_length: int = 2000) -> str:
+    """
+    Compress envelope content to reduce token usage while preserving critical information.
+    
+    Args:
+        envelope_text: Full envelope text
+        max_length: Maximum length for compressed envelope
+    
+    Returns:
+        Compressed envelope text
+    """
+    if len(envelope_text) <= max_length:
+        return envelope_text
+    
+    lines = envelope_text.split('\n')
+    
+    # Prioritize sections: goal, acceptance, constraints
+    priority_sections = ['goal', 'acceptance', 'constraints', 'task_class']
+    compressed_lines = []
+    current_section = None
+    
+    for line in lines:
+        line_lower = line.lower().strip()
+        # Check if this line starts a priority section
+        for section in priority_sections:
+            if line_lower.startswith(section):
+                current_section = section
+                break
+        
+        # Always include priority section headers and content
+        if current_section in priority_sections[:3]:  # goal, acceptance, constraints
+            compressed_lines.append(line)
+        # Include other sections only if we have space
+        elif len('\n'.join(compressed_lines)) < max_length * 0.8:
+            compressed_lines.append(line)
+    
+    compressed = '\n'.join(compressed_lines)
+    
+    # If still too long, truncate from the end
+    if len(compressed) > max_length:
+        compressed = compressed[:max_length-3] + "..."
+    
+    return compressed
 
 
 def call(cmd: list[str], timeout: int, cwd: str | None = None, env: dict[str, str] | None = None) -> tuple[int, str, str, float]:
@@ -495,8 +560,13 @@ def build_auto_context_text(
         return ""
 
     current_norm = current_task.strip().lower()
+    current_words = set(current_norm.split())
+    
     deduped: list[dict[str, str]] = []
     seen: set[str] = set()
+    
+    # Score entries by relevance to current task
+    scored_entries = []
     for item in reversed(entries):
         task = item.get("task", "").strip()
         if not task:
@@ -505,9 +575,20 @@ def build_auto_context_text(
         if norm == current_norm or norm in seen:
             continue
         seen.add(norm)
-        deduped.append(item)
-        if len(deduped) >= history_limit:
-            break
+        
+        # Calculate relevance score based on word overlap
+        task_words = set(norm.split())
+        if current_words and task_words:
+            overlap = len(current_words & task_words)
+            score = overlap / max(len(current_words), len(task_words))
+        else:
+            score = 0.0
+        
+        scored_entries.append((score, item))
+    
+    # Sort by relevance score (most relevant first) and take top entries
+    scored_entries.sort(key=lambda x: x[0], reverse=True)
+    deduped = [item for score, item in scored_entries[:history_limit]]
 
     if not deduped:
         return ""
@@ -522,7 +603,11 @@ def build_auto_context_text(
     for item in deduped:
         ts_raw = item.get("timestamp", "")
         ts_label = ts_raw[:19].replace("T", " ") if ts_raw else "unknown-time"
-        lines.append(f"- [{ts_label} UTC] {item['task']}")
+        # Truncate long task descriptions to save tokens
+        task_text = item['task']
+        if len(task_text) > 100:
+            task_text = task_text[:97] + "..."
+        lines.append(f"- [{ts_label} UTC] {task_text}")
 
     text = "\n".join(lines).strip() + "\n"
 
@@ -538,7 +623,10 @@ def build_auto_context_text(
             for item in deduped:
                 ts_raw = item.get("timestamp", "")
                 ts_label = ts_raw[:19].replace("T", " ") if ts_raw else "unknown-time"
-                lines.append(f"- [{ts_label} UTC] {item['task']}")
+                task_text = item['task']
+                if len(task_text) > 100:
+                    task_text = task_text[:97] + "..."
+                lines.append(f"- [{ts_label} UTC] {task_text}")
             text = "\n".join(lines).strip() + "\n"
             if len(text) <= max_chars:
                 break

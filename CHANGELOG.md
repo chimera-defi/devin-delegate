@@ -5,6 +5,16 @@ All notable changes to devin-delegate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Token optimization improvements to reduce usage and costs
+- Enhanced `estimate_tokens()` with multi-heuristic approach for better accuracy on longer text
+- Added `compress_envelope_content()` function to reduce envelope size while preserving critical information
+- Improved `build_auto_context_text()` with relevance scoring to prioritize context by similarity to current task
+- Added task description truncation in auto-context to limit token usage
+- Optimized cache key generation in result_cache.py to compress large context payloads
+
 ## [0.2.10] - 2026-06-02
 
 ### Changed
