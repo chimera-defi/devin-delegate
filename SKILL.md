@@ -1,7 +1,7 @@
 ---
 name: devin-delegate
 preamble-tier: 4
-version: 0.2.7
+version: 0.2.8
 description: "Delegate bounded research, implement, debug, review, or browser tasks to Devin with workspace envelope/fallback telemetry."
 allowed-tools:
   - Bash
@@ -18,12 +18,10 @@ Use for tasks that benefit from Devin sandbox capabilities (browser, shell, file
 
 ```bash
 ./scripts/env_check.py
-devin-delegate --check
-devin-delegate --subagent-check
 devin-delegate --task "..." --workspace /path/to/repo
 ```
 
-Do not call `devin` directly; wrapper usage is required for context injection, envelope, safety checks, fallback, and telemetry.
+Do not call `devin` directly; wrapper usage is required for envelope, fallback, and telemetry.
 
 ## Envelope Requirements
 
@@ -31,23 +29,18 @@ Classify task as `research`, `implement`, `debug`, `review`, or `browser`, and i
 
 ## Failure Policy
 
-- Timeout: retry once with longer timeout, then fallback.
+- Timeout/provider/schema issues: retry once where supported, then fallback.
 - Auth/session failure: print resume steps, exit code 126, no blind fallback.
 - Clarification request: try Codex guidance, then Claude guidance, then ask human.
-- Unavailable/schema/provider errors: deterministic fallback from config.
-- Kimi quota exceeded (403): switch to claude Agent subagent.
 - Always log model, latency, fallback reason, estimated token savings.
 
 ## Support Commands
 
 ```bash
 devin-delegate --templates
-devin-delegate --safety-check --task "..."
 devin-delegate --stats
 devin-delegate --history
 devin-delegate --batch tasks.jsonl
-devin-delegate-manage workspace-sync
-devin-delegate-manage ci-gate
 ```
 
 Use `kimi-delegate` for cheaper bounded research. Details: `references/architecture.md`.
