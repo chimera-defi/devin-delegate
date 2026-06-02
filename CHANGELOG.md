@@ -5,6 +5,14 @@ All notable changes to devin-delegate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-06-02
+
+### Changed
+- Reduced SKILL.md from 53 to 46 lines (13% context reduction) to align with kimi-delegate/grok-delegate format
+- Removed redundant commands from Required Commands section
+- Consolidated Failure Policy to match sibling skill concise format
+- Removed verbose support commands to reduce context bloat
+
 ## [0.2.7] - 2026-06-02
 
 ### Fixed

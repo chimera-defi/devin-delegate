@@ -16,7 +16,7 @@ on:
           - custom
 
 env:
-  DEVIN_DELEGATE_VERSION: '0.2.7'
+  DEVIN_DELEGATE_VERSION: '0.2.8'
 
 jobs:
   scheduled-review:
