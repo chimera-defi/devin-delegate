@@ -134,6 +134,9 @@ devin-delegate "add error handling to the API client"
 | `--health` | Quick health check and exit |
 | `--dashboard` | Show telemetry dashboard in terminal |
 | `--dashboard-html` | Generate HTML telemetry dashboard |
+|| `--dashboard-output FILE` | Output file for `--dashboard-html` |
+|| `--no-cache` | Disable result caching |
+|| `--cache-ttl SEC` | Cache TTL in seconds (default: 86400) |
 | `--cache-stats` | Show result cache statistics |
 | `--cache-cleanup` | Evict expired cache entries |
 | `--cache-clear` | Clear all cached results |
