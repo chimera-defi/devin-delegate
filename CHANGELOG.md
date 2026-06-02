@@ -5,6 +5,22 @@ All notable changes to devin-delegate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-06-02
+
+### Fixed
+- Fixed version mismatch between SKILL.md (0.2.6) and config/devin-delegate.json (0.2.4)
+- Enhanced error handling in fallback.py with installation hints and alternative provider suggestions
+- Fixed permission error handling in review_devin_delegate.py to gracefully handle workspace access issues
+
+### Added
+- Added config validation script (validate_config.py) for checking configuration consistency and correctness
+- Validation checks include: version consistency, required fields, fallback provider configuration, timeout values
+- Config validation can be run with: `python3 scripts/validate_config.py`
+
+### Changed
+- Improved error messages in fallback.py to provide actionable recovery steps
+- Enhanced telemetry review script to handle permission errors gracefully without crashing
+
 ## [0.2.4] - 2026-05-22
 
 ### Added

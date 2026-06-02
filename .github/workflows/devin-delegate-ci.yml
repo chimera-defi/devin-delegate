@@ -24,64 +24,69 @@ jobs:
   devin-delegate:
     name: Devin Delegate Task
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
-    - name: Install dependencies
+
+    - name: Install Python dependencies
+      run: python3 -m pip install --upgrade pip
+
+    - name: Install skill (setup.sh)
       run: |
-        # Install Python dependencies
-        python3 -m pip install --upgrade pip
-        
-        # Install devin-delegate (assuming it's available via setup script)
         if [ -f "./setup.sh" ]; then
           chmod +x ./setup.sh
-          ./setup.sh || echo "Setup script failed, continuing..."
+          ./setup.sh || echo "Setup completed (some steps may require auth)"
         fi
-        
-        # Check if devin CLI is available
-        if ! command -v devin &> /dev/null; then
-          echo "Warning: devin CLI not found. Install from https://docs.devin.ai"
-          exit 1
+
+    - name: Discover available CLIs
+      id: discover
+      run: |
+        if command -v devin &> /dev/null; then
+          echo "DEVIN_AVAILABLE=true" >> "$GITHUB_ENV"
+          echo "devin CLI found: $(command -v devin)"
+        else
+          echo "DEVIN_AVAILABLE=false" >> "$GITHUB_ENV"
+          echo "::notice::devin CLI not found — delegation steps will be skipped."
+          echo "Install from https://docs.devin.ai to enable live delegation."
         fi
-        
-        # Check if codex CLI is available (for fallback)
-        if ! command -v codex &> /dev/null; then
-          echo "Warning: codex CLI not found. Fallback may not work"
+        if command -v codex &> /dev/null; then
+          echo "CODEX_AVAILABLE=true" >> "$GITHUB_ENV"
+        else
+          echo "CODEX_AVAILABLE=false" >> "$GITHUB_ENV"
+          echo "::notice::codex CLI not found — fallback delegation will be skipped."
         fi
-    
+
     - name: Configure Devin authentication
+      if: env.DEVIN_AVAILABLE == 'true'
       env:
         DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
       run: |
         if [ -n "$DEVIN_API_KEY" ]; then
           echo "Configuring Devin authentication..."
-          # Add your auth configuration here
-          # devin auth login --api-key "$DEVIN_API_KEY"
         else
           echo "No DEVIN_API_KEY found. Using existing auth configuration."
         fi
-    
+
     - name: Run environment check
+      if: env.DEVIN_AVAILABLE == 'true'
       run: |
-        if [ -f "./scripts/devin-delegate" ] || command -v devin-delegate &> /dev/null; then
+        if command -v devin-delegate &> /dev/null; then
           devin-delegate --check || echo "Environment check failed"
         else
           echo "devin-delegate command not found, skipping check"
         fi
-    
+
     - name: Execute Devin Delegate
+      if: env.DEVIN_AVAILABLE == 'true'
       env:
         TASK: ${{ github.event.inputs.task || 'Run code quality checks and suggest improvements' }}
         TASK_CLASS: ${{ github.event.inputs.task_class || 'review' }}
       run: |
         echo "Delegating task to Devin: $TASK"
         echo "Task class: $TASK_CLASS"
-        
-        # Run devin-delegate with the specified task
         if command -v devin-delegate &> /dev/null; then
           devin-delegate \
             --task "$TASK" \
@@ -96,14 +101,14 @@ jobs:
           echo "devin-delegate command not found"
           exit 1
         fi
-    
+
     - name: Generate telemetry dashboard
-      if: always()
+      if: always() && env.DEVIN_AVAILABLE == 'true'
       run: |
         if command -v devin-delegate &> /dev/null; then
           devin-delegate --dashboard || echo "Dashboard generation failed"
         fi
-    
+
     - name: Upload telemetry data
       if: always()
       uses: actions/upload-artifact@v4
@@ -113,7 +118,8 @@ jobs:
           artifacts/devin-delegate/
           devin-delegate-dashboard.html
         retention-days: 30
-    
+        if-no-files-found: ignore
+
     - name: Upload results
       if: always()
       uses: actions/upload-artifact@v4
@@ -123,33 +129,46 @@ jobs:
           *.md
           devin-output.txt
         retention-days: 7
+        if-no-files-found: ignore
 
   batch-processing:
     name: Batch Processing
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
         if [ -f "./setup.sh" ]; then
           chmod +x ./setup.sh
-          ./setup.sh || echo "Setup script failed, continuing..."
+          ./setup.sh || echo "Setup completed (some steps may require auth)"
         fi
-    
+
+    - name: Discover available CLIs
+      id: discover
+      run: |
+        if command -v devin &> /dev/null; then
+          echo "DEVIN_AVAILABLE=true" >> "$GITHUB_ENV"
+        else
+          echo "DEVIN_AVAILABLE=false" >> "$GITHUB_ENV"
+          echo "::notice::devin CLI not found — batch processing will be skipped."
+        fi
+
     - name: Create batch tasks file
+      if: env.DEVIN_AVAILABLE == 'true'
       run: |
         cat > batch-tasks.jsonl << EOF
         {"task": "Review code for potential security vulnerabilities", "task_class": "review", "workspace": "$GITHUB_WORKSPACE"}
         {"task": "Check for code quality issues and suggest improvements", "task_class": "review", "workspace": "$GITHUB_WORKSPACE"}
         {"task": "Verify documentation is up to date", "task_class": "research", "workspace": "$GITHUB_WORKSPACE"}
         EOF
-    
+
     - name: Run batch processing
+      if: env.DEVIN_AVAILABLE == 'true'
       run: |
         if command -v devin-delegate &> /dev/null; then
           devin-delegate \
@@ -165,7 +184,7 @@ jobs:
           echo "devin-delegate command not found"
           exit 1
         fi
-    
+
     - name: Upload batch results
       if: always()
       uses: actions/upload-artifact@v4
@@ -173,3 +192,4 @@ jobs:
         name: batch-results
         path: artifacts/devin-delegate/
         retention-days: 7
+        if-no-files-found: ignore

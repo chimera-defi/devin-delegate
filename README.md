@@ -34,6 +34,47 @@ devin-delegate "implement JWT auth middleware in Express"
 
 `setup.sh` installs `devin-delegate` to `~/.local/bin`, adds `dd` and related aliases, and wraps `devin` so raw calls are detected.
 
+## First 5 minutes
+
+Try these common patterns to see immediate value:
+
+```bash
+# Debug a failing test
+devin-delegate "debug why the user auth test is failing" --task-class debug
+
+# Review a pull request
+devin-delegate "review the changes in PR #123 for security issues" --task-class review
+
+# Research a library
+devin-delegate "research the best Python async HTTP libraries and compare performance" --task-class research
+
+# Browser automation
+devin-delegate "test the login flow on https://example.com and report issues" --task-class browser
+
+# Quick implementation
+devin-delegate "add error handling to the API client"
+```
+
+**Why use the wrapper?** Each call automatically:
+- Scales timeouts based on repo size (prevents silent failures)
+- Routes to Codex if Devin times out or errors (no manual retry)
+- Tracks tokens saved vs running inline (see `--stats`)
+- Logs to audit trail (see `--history`)
+
+## Quick reference
+
+| When to use | Command pattern |
+|---|---|
+| **Single file, <50 lines** | Edit inline (cheaper) |
+| **Multi-file OR >100 lines** | `devin-delegate "..."` |
+| **Security audit / research** | `kimi-delegate "..."` (cheaper) |
+| **Browser/UI/screenshot** | `devin-delegate "..." --task-class browser` |
+| **Debug failures** | `devin-delegate "..." --task-class debug` |
+| **Code review** | `devin-delegate "..." --task-class review` |
+| **Large repo** | Auto-scales timeout (no flags needed) |
+| **Check health** | `devin-delegate --subagent-check` |
+| **See savings** | `devin-delegate --stats` |
+
 ## Commands
 
 | Command | What it does |
@@ -50,6 +91,8 @@ devin-delegate "implement JWT auth middleware in Express"
 | `devin-delegate --suggest` | Auto-suggest a task from current git status |
 | `devin-delegate --last` | Re-run the previous task |
 | `devin-delegate --retry` | Retry the last failed task |
+| `devin-delegate --templates` | List available task templates |
+| `devin-delegate --health` | Quick health check and exit |
 | `devin-delegate-manage workspace-install` | Install skill across all workspace repos |
 | `devin-delegate-manage workspace-audit` | Audit skill propagation |
 | `devin-delegate-manage usage-audit` | Detect raw devin calls that bypassed the wrapper |
@@ -71,36 +114,34 @@ devin-delegate "implement JWT auth middleware in Express"
 | Flag | Description |
 |---|---|
 | `--task TEXT` | Task description (or use positional arg) |
-| `--workspace PATH` / `-w` | Repo path (default: current git root) |
+| `--workspace PATH` | Repo path (default: current git root) |
 | `--task-class TEXT` | `research`, `implement`, `debug`, `review`, `browser` |
 | `--timeout-override SEC` | Override computed timeout |
 | `--fallback-engine TEXT` | Override fallback: `codex`, `kimi`, `claude`, `anthropic`, `pi` |
 | `--fallback-model TEXT` | Override fallback model |
-| `--fallback-pi-provider TEXT` | Provider for `pi` fallback engine (e.g. `kimi-coding`, `openai`) |
 | `--no-auto-context` | Disable automatic context from recent task history |
-| `--auto-context-limit N` | Number of recent tasks to include for auto context (0 = use config) |
-| `--auto-context-max-chars N` | Max chars for auto context payload (0 = use config) |
 | `--safety-check` | Run safety checks before delegation |
 | `--strict-safety` | Treat safety warnings as errors |
 | `--template TEXT` | Use a named task template |
-| `--templates` | List all available task templates |
+| `--templates` | List available templates |
 | `--var KEY=VALUE` | Template variable (repeatable) |
-| `--parallel` | Enable parallel processing with `--batch` |
-| `--max-workers N` | Parallel batch worker count (default: 4) |
-| `--batch-timeout SEC` | Overall timeout for parallel batch (default: 3600) |
-| `--no-cache` | Disable result caching |
-| `--cache-ttl SEC` | Cache TTL in seconds (default: 86400) |
-| `--cache-stats` | Show cache statistics |
-| `--cache-cleanup` | Clean expired cache entries |
-| `--cache-clear` | Clear all cache entries |
+| `--fallback-pi-provider TEXT` | Provider for `pi` fallback engine (e.g. `kimi-coding`, `openai`) |
+| `--auto-context-limit N` | Number of recent tasks to include for auto context (0 = from config) |
+| `--auto-context-max-chars N` | Max characters for auto context payload (0 = from config) |
+| `--parallel` | Enable parallel batch processing with `--batch` |
+| `--max-workers N` | Max parallel workers when `--parallel` is set (default 4) |
+| `--batch-timeout SEC` | Timeout for `as_completed` iteration in parallel batch; underlying tasks run to completion after it fires (default 3600) |
+| `--health` | Quick health check and exit |
 | `--dashboard` | Show telemetry dashboard in terminal |
 | `--dashboard-html` | Generate HTML telemetry dashboard |
-| `--dashboard-output FILE` | Output file for `--dashboard-html` |
-| `--health` | Quick health check and exit |
+|| `--dashboard-output FILE` | Output file for `--dashboard-html` |
+|| `--no-cache` | Disable result caching |
+|| `--cache-ttl SEC` | Cache TTL in seconds (default: 86400) |
+| `--cache-stats` | Show result cache statistics |
+| `--cache-cleanup` | Evict expired cache entries |
+| `--cache-clear` | Clear all cached results |
 | `--quick` / `-q` | Suppress extra output |
 | `--cost` | Show estimated cost/savings after run |
-
-> **Deprecated:** `--fallback-provider` is a legacy alias for `--fallback-engine`; use `--fallback-engine` instead.
 
 ## How it works
 
