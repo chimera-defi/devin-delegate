@@ -122,26 +122,32 @@ def empty_bypass_report(workspace_root: Path, days: int, error: str = "") -> dic
 def collect_reports(repo_root: Path, workspace_root: Path) -> dict[str, Any]:
     telemetry = summarize_telemetry(load_events(repo_root, days=14))
 
-    if workspace_root.exists() and workspace_root.is_dir():
-        try:
-            usage = audit_usage(workspace_root, 30)
-        except Exception as exc:  # pragma: no cover
-            usage = empty_usage_report(workspace_root, 30, error=str(exc))
-        try:
-            skill_audit = audit_workspace_skills(
-                workspace_root,
-                repo_root,
-                include_self=False,
-                include_worktrees=True,
-            )
-        except Exception as exc:  # pragma: no cover
-            skill_audit = empty_skill_audit(workspace_root, repo_root, error=str(exc))
-        try:
-            bypass = detect_bypasses(workspace_root, 30)
-        except Exception as exc:  # pragma: no cover
-            bypass = empty_bypass_report(workspace_root, 30, error=str(exc))
-    else:
-        message = f"workspace root not found: {workspace_root}"
+    try:
+        if workspace_root.exists() and workspace_root.is_dir():
+            try:
+                usage = audit_usage(workspace_root, 30)
+            except Exception as exc:  # pragma: no cover
+                usage = empty_usage_report(workspace_root, 30, error=str(exc))
+            try:
+                skill_audit = audit_workspace_skills(
+                    workspace_root,
+                    repo_root,
+                    include_self=False,
+                    include_worktrees=True,
+                )
+            except Exception as exc:  # pragma: no cover
+                skill_audit = empty_skill_audit(workspace_root, repo_root, error=str(exc))
+            try:
+                bypass = detect_bypasses(workspace_root, 30)
+            except Exception as exc:  # pragma: no cover
+                bypass = empty_bypass_report(workspace_root, 30, error=str(exc))
+        else:
+            message = f"workspace root not found: {workspace_root}"
+            usage = empty_usage_report(workspace_root, 30, error=message)
+            skill_audit = empty_skill_audit(workspace_root, repo_root, error=message)
+            bypass = empty_bypass_report(workspace_root, 30, error=message)
+    except (PermissionError, OSError) as exc:
+        message = f"workspace root access error: {workspace_root} - {exc}"
         usage = empty_usage_report(workspace_root, 30, error=message)
         skill_audit = empty_skill_audit(workspace_root, repo_root, error=message)
         bypass = empty_bypass_report(workspace_root, 30, error=message)

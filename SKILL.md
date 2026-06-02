@@ -63,4 +63,14 @@ devin-delegate-manage workspace-sync
 devin-delegate-manage ci-gate
 ```
 
+## Shell Integration
+
+The skill includes shell completion and interception for better UX:
+
+- **Shell completion**: Auto-completes flags and task classes (installed via setup.sh)
+- **Bash shim**: Intercepts raw `devin --print/--task` calls and routes through wrapper
+- **Binary wrapper**: Intercepts devin at the binary level for non-interactive shells (CI, scripts)
+
+To disable interception temporarily: `DEVIN_DELEGATE_NO_SHIM=1 devin --print "..."`
+
 Use `kimi-delegate` for cheaper bounded research. Details: `references/architecture.md` and `references/skill-propagation-process.md`.
