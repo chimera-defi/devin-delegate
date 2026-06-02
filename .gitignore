@@ -2,3 +2,4 @@ artifacts/
 scripts/__pycache__/
 telemetry/
 *.pyc
+venv/
