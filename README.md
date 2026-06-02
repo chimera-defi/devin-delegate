@@ -123,8 +123,20 @@ devin-delegate "add error handling to the API client"
 | `--safety-check` | Run safety checks before delegation |
 | `--strict-safety` | Treat safety warnings as errors |
 | `--template TEXT` | Use a named task template |
+| `--templates` | List available templates |
 | `--var KEY=VALUE` | Template variable (repeatable) |
-| `--parallel` | Enable parallel processing with `--batch` |
+| `--fallback-pi-provider TEXT` | Provider for `pi` fallback engine (e.g. `kimi-coding`, `openai`) |
+| `--auto-context-limit N` | Number of recent tasks to include for auto context (0 = from config) |
+| `--auto-context-max-chars N` | Max characters for auto context payload (0 = from config) |
+| `--parallel` | Enable parallel batch processing with `--batch` |
+| `--max-workers N` | Max parallel workers when `--parallel` is set (default 4) |
+| `--batch-timeout SEC` | Timeout for `as_completed` iteration in parallel batch; underlying tasks run to completion after it fires (default 3600) |
+| `--health` | Quick health check and exit |
+| `--dashboard` | Show telemetry dashboard in terminal |
+| `--dashboard-html` | Generate HTML telemetry dashboard |
+| `--cache-stats` | Show result cache statistics |
+| `--cache-cleanup` | Evict expired cache entries |
+| `--cache-clear` | Clear all cached results |
 | `--quick` / `-q` | Suppress extra output |
 | `--cost` | Show estimated cost/savings after run |
 
