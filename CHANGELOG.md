@@ -5,6 +5,20 @@ All notable changes to devin-delegate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-06-02
+
+### Fixed
+- Fixed CI workflow version mismatch (0.2.4 → 0.2.7) across all workflows
+- Fixed CI execution failure when devin CLI not installed in GitHub Actions
+- Added ~/.local/bin to GITHUB_PATH after setup.sh to ensure devin-delegate is available
+- Made CI delegation non-critical when devin CLI unavailable (graceful degradation)
+
+### Changed
+- Reduced SKILL.md from 76 to 53 lines (~30% context reduction)
+- Removed verbose delegation thresholds section to reduce context bloat
+- Removed shell integration details to align with kimi-delegate/grok-delegate concise format
+- Simplified failure policy language for clarity
+
 ## [0.2.6] - 2026-06-02
 
 ### Fixed
