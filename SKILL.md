@@ -1,7 +1,7 @@
 ---
 name: devin-delegate
 preamble-tier: 4
-version: 0.2.8
+version: 0.2.9
 description: "Delegate bounded research, implement, debug, review, or browser tasks to Devin with workspace envelope/fallback telemetry."
 allowed-tools:
   - Bash

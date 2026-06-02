@@ -1,5 +1,6 @@
 artifacts/
 scripts/__pycache__/
+**/__pycache__/
 telemetry/
 *.pyc
 venv/

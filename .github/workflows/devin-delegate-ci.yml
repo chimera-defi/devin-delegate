@@ -18,12 +18,14 @@ on:
         default: 'implement'
 
 env:
-  DEVIN_DELEGATE_VERSION: '0.2.8'
+  DEVIN_DELEGATE_VERSION: '0.2.9'
 
 jobs:
   devin-delegate:
     name: Devin Delegate Task
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - name: Checkout code
@@ -132,6 +134,8 @@ jobs:
     name: Batch Processing
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - name: Checkout code

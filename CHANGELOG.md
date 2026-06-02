@@ -5,6 +5,16 @@ All notable changes to devin-delegate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-06-02
+
+### Fixed
+- Added venv/ to .gitignore to prevent committing virtual environment
+- Added **/__pycache__/ to .gitignore to catch all pycache directories
+- Fixed Node.js 20 deprecation warnings in CI workflows by opting into Node.js 24
+
+### Changed
+- Updated version to 0.2.9 across all configuration files
+
 ## [0.2.8] - 2026-06-02
 
 ### Changed
