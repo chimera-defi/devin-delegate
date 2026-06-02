@@ -97,17 +97,75 @@ if [ -f "$SHIM_SOURCE" ]; then
   echo "  shim:    $SHIM_TARGET"
 fi
 
+# Install shell completion
+COMPLETION_SOURCE="$SCRIPTS/devin-delegate-completion.bash"
+COMPLETION_TARGET="$HOME/.local/share/devin-delegate-completion.bash"
+if [ -f "$COMPLETION_SOURCE" ]; then
+  mkdir -p "$(dirname "$COMPLETION_TARGET")"
+  cp "$COMPLETION_SOURCE" "$COMPLETION_TARGET"
+  if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
+    COMP_LINE='source "$HOME/.local/share/devin-delegate-completion.bash"'
+    if ! grep -q "devin-delegate-completion" "$SHELL_RC" 2>/dev/null; then
+      echo -e "\n# devin-delegate shell completion\n$COMP_LINE" >> "$SHELL_RC"
+      echo "  completion added to $SHELL_RC"
+    else
+      echo "  completion already present in $SHELL_RC"
+    fi
+  fi
+  echo "  completion: $COMPLETION_TARGET"
+fi
+
+# Install binary wrapper (works in non-interactive shells where .bashrc isn't sourced)
+WRAPPER_SOURCE="$SCRIPTS/devin-wrapper-binary.py"
+WRAPPER_TARGET="$BIN_DIR/devin"
+if [ -f "$WRAPPER_SOURCE" ]; then
+  if [ -f "$WRAPPER_TARGET" ] && ! grep -q "devin-wrapper-binary" "$WRAPPER_TARGET" 2>/dev/null; then
+    # Real devin binary exists — back it up and install wrapper in its place
+    mv "$WRAPPER_TARGET" "$WRAPPER_TARGET.real"
+    echo "  backed up real devin → $WRAPPER_TARGET.real"
+  fi
+  cp "$WRAPPER_SOURCE" "$WRAPPER_TARGET"
+  chmod +x "$WRAPPER_TARGET"
+  echo "  binary wrapper: $WRAPPER_TARGET (intercepts devin --print/--task)"
+fi
+
 echo ""
 echo "Running environment check..."
-"$SCRIPTS/env_check.py"
+if "$SCRIPTS/env_check.py"; then
+  echo "✓ Environment check passed"
+else
+  echo "⚠ Environment check failed - some features may not work"
+fi
 
 cat <<EOF
 
-devin-delegate installed
-  agents:  $HOME/.agents/skills/devin-delegate
-  openclaw:$HOME/.openclaw/skills/devin-delegate
-  codex:   ${CODEX_HOME:-$HOME/.codex}/skills/devin-delegate
-  bin:     $BIN_DIR/devin-delegate
-  manage:  $BIN_DIR/devin-delegate-manage
-  shim:    $HOME/.local/share/devin-delegate-shim.sh
+✓ devin-delegate installed successfully!
+
+Installation locations:
+  agents:     $HOME/.agents/skills/devin-delegate
+  openclaw:   $HOME/.openclaw/skills/devin-delegate
+  codex:      ${CODEX_HOME:-$HOME/.codex}/skills/devin-delegate
+  bin:        $BIN_DIR/devin-delegate
+  manage:     $BIN_DIR/devin-delegate-manage
+  shim:       $HOME/.local/share/devin-delegate-shim.sh
+  completion: $HOME/.local/share/devin-delegate-completion.bash
+  wrapper:    $BIN_DIR/devin (binary-level interception)
+
+Next steps:
+  1. Reload your shell: source $SHELL_RC
+  2. Verify installation: devin-delegate --check
+  3. Try a quick task: devin-delegate "add error handling to the main function"
+  4. Check your savings: devin-delegate --stats
+
+Quick aliases now available:
+  dd              - Run devin-delegate
+  dd-check        - Verify installation
+  dd-subagent-check - Full readiness check
+  dd-stats        - View usage statistics
+  dd-history      - View task history
+
+Shell integration:
+  - Bash completion for flags and task classes
+  - Automatic interception of raw devin --print/--task calls
+  - Binary wrapper for non-interactive shells (CI, scripts)
 EOF

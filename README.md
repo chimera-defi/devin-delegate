@@ -34,6 +34,47 @@ devin-delegate "implement JWT auth middleware in Express"
 
 `setup.sh` installs `devin-delegate` to `~/.local/bin`, adds `dd` and related aliases, and wraps `devin` so raw calls are detected.
 
+## First 5 minutes
+
+Try these common patterns to see immediate value:
+
+```bash
+# Debug a failing test
+devin-delegate "debug why the user auth test is failing" --task-class debug
+
+# Review a pull request
+devin-delegate "review the changes in PR #123 for security issues" --task-class review
+
+# Research a library
+devin-delegate "research the best Python async HTTP libraries and compare performance" --task-class research
+
+# Browser automation
+devin-delegate "test the login flow on https://example.com and report issues" --task-class browser
+
+# Quick implementation
+devin-delegate "add error handling to the API client"
+```
+
+**Why use the wrapper?** Each call automatically:
+- Scales timeouts based on repo size (prevents silent failures)
+- Routes to Codex if Devin times out or errors (no manual retry)
+- Tracks tokens saved vs running inline (see `--stats`)
+- Logs to audit trail (see `--history`)
+
+## Quick reference
+
+| When to use | Command pattern |
+|---|---|
+| **Single file, <50 lines** | Edit inline (cheaper) |
+| **Multi-file OR >100 lines** | `devin-delegate "..."` |
+| **Security audit / research** | `kimi-delegate "..."` (cheaper) |
+| **Browser/UI/screenshot** | `devin-delegate "..." --task-class browser` |
+| **Debug failures** | `devin-delegate "..." --task-class debug` |
+| **Code review** | `devin-delegate "..." --task-class review` |
+| **Large repo** | Auto-scales timeout (no flags needed) |
+| **Check health** | `devin-delegate --subagent-check` |
+| **See savings** | `devin-delegate --stats` |
+
 ## Commands
 
 | Command | What it does |

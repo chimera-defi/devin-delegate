@@ -1458,6 +1458,22 @@ def main() -> int:
         print(f"error: {exc}", flush=True)
         return 2
 
+    # First-run detection and helpful message
+    telemetry_dir = repo_root / "artifacts" / "devin-delegate"
+    events_file = telemetry_dir / "events.jsonl"
+    is_first_run = not events_file.exists()
+    
+    if is_first_run and task and not args.quick and not any([
+        args.check, args.subagent_check, args.stats, args.health, 
+        args.interactive, args.dry_run, args.print_envelope, args.templates,
+        args.history, args.suggest, args.cache_stats, args.cache_cleanup, args.cache_clear,
+        args.dashboard, args.dashboard_html
+    ]):
+        print("🎯 First-time delegation detected!", flush=True)
+        print("💡 Tip: Use --interactive to build your envelope step-by-step", flush=True)
+        print("💡 Tip: Use --stats after your run to see token savings", flush=True)
+        print("", flush=True)
+
     if args.check:
         return run_check(config, routing)
 

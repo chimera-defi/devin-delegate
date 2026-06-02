@@ -22,5 +22,8 @@ type(scope): subject [Agent: <MODEL NAME>]
 <!-- devin-delegate:begin -->
 All Devin subagent calls MUST route through devin-delegate.
 Direct 'devin --print' calls bypass telemetry, fallback, and workspace context.
-Use: devin-delegate --task '...' --workspace /path/to/repo
+
+- **One-liner:** `devin-delegate --task '...' --workspace /path/to/repo`
+- **Interactive:** `devin-delegate --interactive`
+- **Fallback (if CLI not available):** `~/.agents/skills/devin-delegate/scripts/delegate.py --task '...' --workspace /path/to/repo`
 <!-- devin-delegate:end -->
