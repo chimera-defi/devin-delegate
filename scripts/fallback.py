@@ -71,25 +71,30 @@ def main() -> int:
     if args.fallback_engine == "codex":
         if shutil.which("codex") is None:
             sys.stderr.write("fallback error: `codex` binary not found\n")
+            sys.stderr.write("Install: https://docs.example.com/codex or try --fallback-engine kimi\n")
             return 127
         proc = run_codex(prompt, args.model, args.timeout)
     elif args.fallback_engine == "pi":
         if shutil.which("pi") is None:
             sys.stderr.write("fallback error: `pi` binary not found\n")
+            sys.stderr.write("Install: https://docs.example.com/pi or try --fallback-engine codex\n")
             return 127
         proc = run_pi(prompt, args.provider, args.model, args.timeout)
     elif args.fallback_engine == "kimi":
         if shutil.which("kimi") is None:
             sys.stderr.write("fallback error: `kimi` binary not found\n")
+            sys.stderr.write("Install: https://docs.example.com/kimi or try --fallback-engine claude\n")
             return 127
         proc = run_kimi(prompt, args.model, args.timeout)
     elif args.fallback_engine in ("claude", "anthropic"):
         if shutil.which("claude") is None:
             sys.stderr.write("fallback error: `claude` binary not found\n")
+            sys.stderr.write("Install: https://docs.anthropic.com/claude-cli or try --fallback-engine kimi\n")
             return 127
         proc = run_claude(prompt, args.model, args.timeout)
     else:
         sys.stderr.write(f"fallback error: unknown engine {args.fallback_engine}\n")
+        sys.stderr.write("Valid engines: codex, kimi, claude, anthropic, pi\n")
         return 2
 
     if proc.returncode != 0:
