@@ -17,7 +17,6 @@ Use for tasks that benefit from Devin sandbox capabilities (browser, shell, file
 ## Required Commands
 
 ```bash
-./scripts/env_check.py
 devin-delegate --task "..." --workspace /path/to/repo
 ```
 
@@ -40,6 +39,7 @@ devin-delegate --templates
 devin-delegate --stats
 devin-delegate --history
 devin-delegate --batch tasks.jsonl
+./scripts/devin_delegate_telemetry.py summary --days 14
 ```
 
 Use `kimi-delegate` for cheaper bounded research. Details: `references/architecture.md`.
