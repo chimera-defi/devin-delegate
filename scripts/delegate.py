@@ -1327,6 +1327,15 @@ def run_delegate(
     parent_estimate_tokens = max(parent_tokens, delegate_input_tokens) * 3
     saved = max(0, parent_estimate_tokens - delegate_output_tokens)
 
+    # Collect provider warnings
+    provider_warnings = []
+    if effective_fallback_engine == "pi" and "No API key found for openai" in (last_stderr or ""):
+        provider_warnings.append("pi_fallback_missing_openai_key")
+    if fallback_used and effective_fallback_engine == "codex":
+        provider_warnings.append("codex_fallback_used")
+    if retry_count > 0:
+        provider_warnings.append(f"retry_count_{retry_count}")
+
     telemetry_meta = {
         "repo_root": str(repo_root),
         "skill_root": str(skill),
@@ -1340,6 +1349,7 @@ def run_delegate(
         "fallback_engine": effective_fallback_engine if fallback_used else "",
         "fallback_model": effective_fallback_model if fallback_used else "",
         "fallback_provider": effective_fallback_provider if fallback_used else "",
+        "provider_warnings": provider_warnings,
     }
 
     telemetry_cmd = [

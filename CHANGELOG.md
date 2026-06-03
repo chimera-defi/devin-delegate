@@ -8,12 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Token optimization improvements to reduce usage and costs
-- Enhanced `estimate_tokens()` with multi-heuristic approach for better accuracy on longer text
-- Added `compress_envelope_content()` function to reduce envelope size while preserving critical information
-- Improved `build_auto_context_text()` with relevance scoring to prioritize context by similarity to current task
-- Added task description truncation in auto-context to limit token usage
-- Optimized cache key generation in result_cache.py to compress large context payloads
+- Provider warnings telemetry (pi_fallback_missing_openai_key, codex_fallback_used, retry_count tracking)
+- Log rotation for events.jsonl (10MB max with .1, .2, .3, .4 retention)
+- Telemetry filtering by task_class, status, and model with CLI arguments
+- Health alerting with configurable fallback rate and auth error thresholds
+
+### Changed
+- Removed `./scripts/env_check.py` from Required Commands (simplification)
+- Added telemetry summary command to Support Commands for monitoring
+- Enhanced repo_root detection with timeout and graceful fallback
 
 ## [0.2.10] - 2026-06-02
 
