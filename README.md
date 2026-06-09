@@ -115,6 +115,7 @@ devin-delegate "add error handling to the API client"
 |---|---|
 | `--task TEXT` | Task description (or use positional arg) |
 | `--workspace PATH` | Repo path (default: current git root) |
+| `--context-file PATH` | Explicit context file to prepend to the task envelope |
 | `--task-class TEXT` | `research`, `implement`, `debug`, `review`, `browser` |
 | `--timeout-override SEC` | Override computed timeout |
 | `--fallback-engine TEXT` | Override fallback: `codex`, `kimi`, `claude`, `anthropic`, `pi` |
@@ -134,9 +135,9 @@ devin-delegate "add error handling to the API client"
 | `--health` | Quick health check and exit |
 | `--dashboard` | Show telemetry dashboard in terminal |
 | `--dashboard-html` | Generate HTML telemetry dashboard |
-|| `--dashboard-output FILE` | Output file for `--dashboard-html` |
-|| `--no-cache` | Disable result caching |
-|| `--cache-ttl SEC` | Cache TTL in seconds (default: 86400) |
+| `--dashboard-output FILE` | Output file for `--dashboard-html` |
+| `--no-cache` | Disable result caching |
+| `--cache-ttl SEC` | Cache TTL in seconds (default: 86400) |
 | `--cache-stats` | Show result cache statistics |
 | `--cache-cleanup` | Evict expired cache entries |
 | `--cache-clear` | Clear all cached results |
