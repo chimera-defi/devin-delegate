@@ -1,17 +1,19 @@
-# devin-delegate Status - 2026-06-06
+# devin-delegate Status - 2026-06-07
+
 ## Last Dream Pass
-- Files deleted: 0
-- Files compressed: 0 (no LLM session artifacts found)
-- Lines removed: 0
+- Files compressed: 0, lines removed: 0
+- No LLM artifact files found
+
 ## Verified Features
-- 38 tests for validate_config/cost_estimator/env_check/result_cache: VERIFIED (PR #5)
-- Token optimization (multi-heuristic estimation + context compression): VERIFIED in git history
-- Telemetry: provider warnings, log rotation, filtering, alerting: VERIFIED in CHANGELOG [Unreleased]
-- v0.2.6 shell integration + config validation: VERIFIED (CHANGELOG 0.2.6 entry)
-## Undocumented Features (Tier 1)
-- audit_workspace_skills/usage, ci_gate, parallel_batch, plan_prompt, repo_scan, session_nudge, summarize: zero test coverage (noted in maintenance-state.md)
-## Maintenance State Notes
-- Last maintenance: 2026-06-04 (test-coverage), status: completed
-- local devin/codex/pi CLIs not in sandbox — env_check.check_devin_auth always returns skipped
+- 38 new tests (validate_config, cost_estimator, env_check, result_cache) — PR #5 open, green
+- Total: 85 tests (up from 47)
+- Telemetry: provider warnings, log rotation, filtering, alerting (feat 931932d)
+- Token optimization: multi-heuristic estimation + context compression (3d696c0)
+
+## Undocumented Features
+- `feat(telemetry): add provider warnings, log rotation, filtering, and alerting` — not in SKILL.md
+- `feat(token-optimization): reduce token usage with multi-heuristic estimation and context compression` — not in SKILL.md
+
 ## Open Items
-- Complete test coverage for 8 uncovered modules (lower priority per maintenance-state.md)
+- Zero coverage: audit_workspace_skills, audit_workspace_usage, ci_gate, parallel_batch, plan_prompt, repo_scan, session_nudge, summarize
+- devin/codex/pi CLIs not installed in sandbox — env_check tests cover check_binary/check_repo_scale instead
