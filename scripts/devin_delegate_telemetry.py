@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -12,14 +13,18 @@ from typing import Any
 
 
 def repo_root_from_script() -> Path:
-    proc = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode == 0 and proc.stdout.strip():
-        return Path(proc.stdout.strip())
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return Path(proc.stdout.strip())
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
     return Path(__file__).resolve().parents[3]
 
 
@@ -27,16 +32,41 @@ def events_path(repo_root: Path) -> Path:
     return repo_root / "artifacts" / "devin-delegate" / "events.jsonl"
 
 
+def _maybe_rotate(path: Path, max_bytes: int = 10_485_760) -> None:
+    """Rotate a JSONL file if it exceeds max_bytes (default 10 MB)."""
+    if not path.exists():
+        return
+    try:
+        if path.stat().st_size <= max_bytes:
+            return
+    except OSError:
+        return
+    # Rotate: .3 -> .4, .2 -> .3, .1 -> .2, current -> .1
+    for i in range(3, 0, -1):
+        older = path.with_suffix(f".jsonl.{i}")
+        newer = path.with_suffix(f".jsonl.{i + 1}")
+        if older.exists():
+            try:
+                older.rename(newer)
+            except OSError:
+                pass
+    try:
+        path.rename(path.with_suffix(".jsonl.1"))
+    except OSError:
+        pass
+
+
 def record_event(repo_root: Path, payload: dict[str, Any]) -> None:
     payload = dict(payload)
     payload.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
     path = events_path(repo_root)
     path.parent.mkdir(parents=True, exist_ok=True)
+    _maybe_rotate(path)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
-def load_events(repo_root: Path, days: int | None = None) -> list[dict[str, Any]]:
+def load_events(repo_root: Path, days: int | None = None, task_class: str | None = None, status: str | None = None, model: str | None = None) -> list[dict[str, Any]]:
     path = events_path(repo_root)
     if not path.exists():
         return []
@@ -64,6 +94,13 @@ def load_events(repo_root: Path, days: int | None = None) -> list[dict[str, Any]
                         ts = None
                     if ts is not None and ts < cutoff:
                         continue
+            # Apply filters
+            if task_class is not None and str(event.get("task_class", "")) != task_class:
+                continue
+            if status is not None and str(event.get("status", "")) != status:
+                continue
+            if model is not None and str(event.get("model_used", "")) != model:
+                continue
             events.append(event)
     return events
 
@@ -195,6 +232,12 @@ def main() -> int:
     summary = sub.add_parser("summary")
     summary.add_argument("--repo-root", type=Path, default=None)
     summary.add_argument("--days", type=int, default=14)
+    summary.add_argument("--task_class", type=str, default=None, help="Filter by task class (implement, debug, research, etc.)")
+    summary.add_argument("--status", type=str, default=None, help="Filter by status (ok, error, timeout, etc.)")
+    summary.add_argument("--model", type=str, default=None, help="Filter by model used")
+    summary.add_argument("--alert", action="store_true", help="Exit non-zero if health thresholds exceeded")
+    summary.add_argument("--fallback_threshold", type=float, default=15.0, help="Max acceptable fallback rate %")
+    summary.add_argument("--auth_threshold", type=int, default=2, help="Max acceptable auth errors")
 
     args = parser.parse_args()
     root = args.repo_root if args.repo_root else repo_root_from_script()
@@ -227,8 +270,19 @@ def main() -> int:
         print(json.dumps({"ok": True, "path": str(events_path(root))}, indent=2))
         return 0
 
-    events = load_events(root, days=args.days)
-    print(json.dumps(summarize(events), indent=2))
+    events = load_events(root, days=args.days, task_class=args.task_class, status=args.status, model=args.model)
+    data = summarize(events)
+    print(json.dumps(data, indent=2))
+
+    if args.alert:
+        fallback_rate = data.get("fallback_rate_pct", 0.0)
+        auth_errors = data.get("auth_errors", 0)
+        if fallback_rate > args.fallback_threshold or auth_errors > args.auth_threshold:
+            sys.stderr.write(
+                f"ALERT: fallback_rate={fallback_rate}% (threshold={args.fallback_threshold}%), "
+                f"auth_errors={auth_errors} (threshold={args.auth_threshold})\n"
+            )
+            return 1
     return 0
 
 

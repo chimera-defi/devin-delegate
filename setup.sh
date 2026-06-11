@@ -23,8 +23,9 @@ cat > "$BIN_DIR/devin-delegate" <<WRAP
 exec "$SCRIPTS/delegate.py" "\$@"
 WRAP
 chmod +x "$BIN_DIR/devin-delegate"
+ln -sfn "$BIN_DIR/devin-delegate" "$BIN_DIR/devin_delegate"
 
-echo "Linked devin-delegate -> $SCRIPTS/delegate.py"
+echo "Linked devin-delegate/devin_delegate -> $SCRIPTS/delegate.py"
 
 # Keep dd shorthand if unclaimed or already managed by this skill.
 if ! command -v dd >/dev/null 2>&1 || [ "$(command -v dd)" = "$BIN_DIR/dd" ]; then
@@ -40,8 +41,9 @@ cat > "$BIN_DIR/devin-delegate-manage" <<WRAP
 exec "$SCRIPTS/devin-delegate-manage.sh" "\$@"
 WRAP
 chmod +x "$BIN_DIR/devin-delegate-manage"
+ln -sfn "$BIN_DIR/devin-delegate-manage" "$BIN_DIR/devin_delegate_manage"
 
-echo "Linked devin-delegate-manage -> $SCRIPTS/devin-delegate-manage.sh"
+echo "Linked devin-delegate-manage/devin_delegate_manage -> $SCRIPTS/devin-delegate-manage.sh"
 
 # Shell ergonomics
 SHELL_RC=""
@@ -108,6 +110,8 @@ devin-delegate installed
   openclaw:$HOME/.openclaw/skills/devin-delegate
   codex:   ${CODEX_HOME:-$HOME/.codex}/skills/devin-delegate
   bin:     $BIN_DIR/devin-delegate
+  bin:     $BIN_DIR/devin_delegate
   manage:  $BIN_DIR/devin-delegate-manage
+  manage:  $BIN_DIR/devin_delegate_manage
   shim:    $HOME/.local/share/devin-delegate-shim.sh
 EOF

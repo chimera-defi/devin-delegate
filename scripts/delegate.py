@@ -68,14 +68,18 @@ def skill_root() -> Path:
 
 
 def current_repo_root(default_root: Path | None = None) -> Path:
-    proc = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode == 0 and proc.stdout.strip():
-        return Path(proc.stdout.strip())
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return Path(proc.stdout.strip())
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
     if default_root is not None:
         return default_root.resolve()
     return Path.cwd()
