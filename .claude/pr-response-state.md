@@ -49,3 +49,13 @@ prs:
       chore(maintenance): 2026-06-10 - security pass. CI green (Devin Delegate
       Task: success; Batch Processing: skipped by design).
       No CHANGES_REQUESTED. Awaiting human review/merge.
+
+  - number: 10
+    repo: chimera-defi/devin-delegate
+    last_activity: "2026-06-12T00:15:30Z"
+    attempt_count: 0
+    status: skipped
+    notes: >
+      chore(maintenance): 2026-06-12 - dead code pass + README flag docs.
+      CI green (Devin Delegate Task: success; Batch Processing: skipped by design).
+      No CHANGES_REQUESTED. Awaiting human review/merge.
