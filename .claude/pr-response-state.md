@@ -1,5 +1,5 @@
 # PR Response State
-last_run: 2026-06-11T14:18
+last_run: 2026-06-12T05:16
 
 prs:
   - number: 5
@@ -52,10 +52,11 @@ prs:
 
   - number: 10
     repo: chimera-defi/devin-delegate
-    last_activity: "2026-06-12T00:15:30Z"
+    last_activity: "2026-06-12T00:15:25Z"
     attempt_count: 0
     status: skipped
     notes: >
-      chore(maintenance): 2026-06-12 - dead code pass + README flag docs.
-      CI green (Devin Delegate Task: success; Batch Processing: skipped by design).
+      chore(maintenance): 2026-06-12 - dead code pass + README flag docs. Added
+      --context-file and --fallback-provider to Key flags table. CI green
+      (Devin Delegate Task: success; Batch Processing: skipped by design).
       No CHANGES_REQUESTED. Awaiting human review/merge.
