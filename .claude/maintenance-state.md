@@ -1,17 +1,10 @@
 # Maintenance State
-last_run: 2026-06-12
-focus: dead-code
+last_run: 2026-06-16
+focus: py-cleanup
 status: completed
-completed: [dead code scan clean; added 2 missing flags to README Key flags table (--context-file, --fallback-provider)]
+completed: [removed unused imports in 5 files via pyflakes scan: parallel_batch.py (os), result_cache.py (os), telemetry_dashboard.py (os), mcp_server.py (skill_root), tests/test_coverage_new.py (json/subprocess/tempfile/patch/estimate_parent_cost). 85 tests pass.]
 in_progress:
-pending: [audit_workspace_skills, audit_workspace_usage, ci_gate, parallel_batch, plan_prompt, repo_scan, session_nudge, summarize — zero coverage, lower priority]
+pending: [audit_workspace_skills, ci_gate, plan_prompt, repo_scan, session_nudge, summarize — zero coverage]
 known_failures:
-  - local devin/codex/pi CLIs not installed in sandbox — env_check.check_devin_auth always returns skipped; tested check_binary and check_repo_scale instead
+  - local devin/codex/pi CLIs not installed in sandbox — env_check always returns skipped
 skip_next_run: [validate_config, cost_estimator, env_check, result_cache tests already added]
-
-## Dead Code Scan Notes (2026-06-12)
-- rg TODO/FIXME/HACK: no results
-- rg dead print(): no results
-- vulture --min-confidence 80: no results
-- Skills telemetry: README was missing --context-file and --fallback-provider — added to Key flags table
-- Note: telemetry grep command in routine uses backtick pattern bug (\'\`--\' matches backslash+backtick, not bare backtick); used grep --flag directly instead

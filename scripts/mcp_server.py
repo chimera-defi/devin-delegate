@@ -26,7 +26,7 @@ except ImportError:
 # Import devin-delegate modules
 try:
     sys.path.insert(0, str(Path(__file__).parent))
-    from delegate import run_delegate, current_repo_root, skill_root, load_json
+    from delegate import run_delegate, current_repo_root, load_json
     from result_cache import ResultCache
     from telemetry_dashboard import TelemetryDashboard
 except ImportError as e:
