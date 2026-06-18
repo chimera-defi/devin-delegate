@@ -115,11 +115,12 @@ devin-delegate "add error handling to the API client"
 |---|---|
 | `--task TEXT` | Task description (or use positional arg) |
 | `--workspace PATH` | Repo path (default: current git root) |
-| `--context-file PATH` | Explicit context file to prepend to the task envelope |
+| `--context-file PATH` | Explicit context file to inject into the task envelope |
 | `--task-class TEXT` | `research`, `implement`, `debug`, `review`, `browser` |
 | `--timeout-override SEC` | Override computed timeout |
 | `--fallback-engine TEXT` | Override fallback: `codex`, `kimi`, `claude`, `anthropic`, `pi` |
 | `--fallback-model TEXT` | Override fallback model |
+| `--fallback-provider TEXT` | Provider for fallback model (e.g. `openai`) |
 | `--no-auto-context` | Disable automatic context from recent task history |
 | `--safety-check` | Run safety checks before delegation |
 | `--strict-safety` | Treat safety warnings as errors |
