@@ -4,3 +4,6 @@ scripts/__pycache__/
 telemetry/
 *.pyc
 venv/
+.env
+.env.*
+.env.local
