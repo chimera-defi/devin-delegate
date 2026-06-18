@@ -3,11 +3,7 @@
 env_check (check_binary / check_repo_scale), and result_cache."""
 from __future__ import annotations
 
-import json
-import subprocess
-import tempfile
 from pathlib import Path
-from unittest.mock import patch
 import sys
 
 import pytest
@@ -135,7 +131,7 @@ class TestValidateVersionConsistency:
 # cost_estimator
 # ---------------------------------------------------------------------------
 
-from cost_estimator import estimate_cost, estimate_parent_cost, calculate_savings
+from cost_estimator import estimate_cost, calculate_savings
 
 PRICING = {
     "providers": {
