@@ -244,7 +244,7 @@ class DevinDelegateMCPServer:
         workspace_path = Path(workspace) if workspace else self.repo_root
         
         # Run delegation in a thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         rc = await loop.run_in_executor(
             None,
             lambda: run_delegate(
@@ -367,7 +367,7 @@ class DevinDelegateMCPServer:
                     batch_file = f.name
                 
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
                     rc = await loop.run_in_executor(
                         None,
                         lambda: run_parallel_batch(
@@ -405,7 +405,7 @@ class DevinDelegateMCPServer:
                 
                 workspace_path = Path(workspace) if workspace else self.repo_root
                 
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 rc = await loop.run_in_executor(
                     None,
                     lambda: run_delegate(
