@@ -182,6 +182,9 @@ def call(cmd: list[str], timeout: int, cwd: str | None = None, env: dict[str, st
     except subprocess.TimeoutExpired:
         latency_ms = (time.perf_counter() - start) * 1000.0
         return 124, "", f"timeout after {timeout}s", latency_ms
+    except FileNotFoundError:
+        latency_ms = (time.perf_counter() - start) * 1000.0
+        return 127, "", f"binary not found: {cmd[0]}", latency_ms
 
 
 def devin_available() -> bool:
@@ -1421,9 +1424,8 @@ def run_delegate(
             )
             if not quick:
                 print("💾 Result cached for future use", flush=True)
-        except Exception:
-            # Fail silently if cache storage fails
-            pass
+        except Exception as exc:
+            print(f"warning: cache write failed: {exc}", file=sys.stderr, flush=True)
     
     return 0
 
@@ -1748,3 +1750,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

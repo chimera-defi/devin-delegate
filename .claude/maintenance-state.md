@@ -1,15 +1,13 @@
 # Maintenance State
-last_run: 2026-06-26
-focus: dead-code
+last_run: 2026-06-27
+focus: observability
 status: completed
 completed:
-  - Dead code scan: clean — no changes to source since 2026-06-19 pass
-  - rg TODO/FIXME/HACK: no results in src/
-  - rg unused imports: no new findings since 2026-06-19 (vulture/pyflakes not available in sandbox; AST-based scan clean)
-  - All callable CLI entry points confirmed active (audit_workspace_skills, ci_gate, plan_prompt, repo_scan, session_nudge, summarize)
+  - fix(delegate.py): add FileNotFoundError catch in call() so missing binary returns rc=127 instead of crashing
+  - fix(delegate.py): log silent cache write failures to stderr instead of bare pass
+  - fix(mcp_server.py): replace deprecated asyncio.get_event_loop() with get_running_loop() in async context
+  - fix(parallel_batch.py): use concurrent.futures.TimeoutError for Python <3.11 compatibility
 in_progress:
 pending:
-  - Add test coverage for zero-coverage entry-point functions
+  - Add test coverage (from prior pass)
 known_failures:
-  - local devin/codex/pi CLIs not installed in sandbox — env_check always returns skipped
-attempt_counts: {}
