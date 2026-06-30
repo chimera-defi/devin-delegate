@@ -6,6 +6,7 @@ import json
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from typing import Any
 
@@ -181,7 +182,7 @@ def run_parallel_batch(
                     })
                     overall_rc = max(overall_rc, 1)
     
-    except TimeoutError:
+    except FuturesTimeoutError:
         print(f"\n❌ Batch processing timed out after {timeout_seconds}s", flush=True)
         return 124
 
