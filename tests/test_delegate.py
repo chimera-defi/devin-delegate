@@ -240,6 +240,15 @@ class TestResolveFallbackSettings:
         assert model == "k2p6"
         assert provider == "kimi-coding"
 
+    def test_null_model_resolves_empty(self):
+        # A null/absent fallback_model must resolve to "" (never the literal
+        # "None") so the codex path can omit --model and use the config default.
+        config = {"fallback_engine": "codex", "fallback_model": None, "fallback_provider": "openai"}
+        engine, model, provider = resolve_fallback_settings(config)
+        assert engine == "codex"
+        assert model == ""
+        assert provider == "openai"
+
 
 class TestClarificationDetection:
     """Test clarification request detection heuristics."""
@@ -350,6 +359,39 @@ class TestSubagentCheck:
             rc = run_subagent_check(config, tmp_path)
 
         assert rc == 0
+
+
+class TestCodexFallbackModel:
+    """WP-C: codex fallback omits --model for sentinels (spark parity)."""
+
+    def _codex_cmd(self, model):
+        import fallback
+
+        captured = {}
+
+        def fake_run(cmd, *args, **kwargs):
+            captured["cmd"] = cmd
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = ""
+            result.stderr = ""
+            return result
+
+        with patch.object(fallback.subprocess, "run", side_effect=fake_run):
+            fallback.run_codex("PROMPT", model, timeout=30)
+        return captured["cmd"]
+
+    def test_omits_model_for_sentinels(self):
+        for sentinel in (None, "", "default", "spark", "null", "None"):
+            cmd = self._codex_cmd(sentinel)
+            assert "--model" not in cmd, f"expected no --model for {sentinel!r}: {cmd}"
+            assert cmd[:2] == ["codex", "exec"]
+            assert cmd[-1] == "PROMPT"
+
+    def test_pins_real_model(self):
+        cmd = self._codex_cmd("gpt-5.5")
+        assert "--model" in cmd
+        assert cmd[cmd.index("--model") + 1] == "gpt-5.5"
 
 
 if __name__ == "__main__":
