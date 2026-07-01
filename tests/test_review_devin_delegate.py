@@ -3,7 +3,22 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
+
+_EXTRAS = Path(
+    os.environ.get(
+        "DELEGATE_EXTRAS_DIR",
+        str(Path.home() / ".claude" / "skills" / "delegate-skill" / "delegate-extras" / "devin"),
+    )
+)
+
+
+def _review_script() -> Path:
+    extras = _EXTRAS / "review_devin_delegate.py"
+    if extras.exists():
+        return extras
+    return Path(__file__).resolve().parents[1] / "scripts" / "review_devin_delegate.py"
 
 
 def load_module(path: Path):
@@ -15,8 +30,7 @@ def load_module(path: Path):
 
 
 def test_health_score_high_for_healthy_payload() -> None:
-    root = Path(__file__).resolve().parents[1]
-    mod = load_module(root / "scripts" / "review_devin_delegate.py")
+    mod = load_module(_review_script())
 
     payload = {
         "metrics": {
@@ -32,8 +46,7 @@ def test_health_score_high_for_healthy_payload() -> None:
 
 
 def test_health_score_low_for_unhealthy_payload() -> None:
-    root = Path(__file__).resolve().parents[1]
-    mod = load_module(root / "scripts" / "review_devin_delegate.py")
+    mod = load_module(_review_script())
 
     payload = {
         "metrics": {
@@ -49,8 +62,7 @@ def test_health_score_low_for_unhealthy_payload() -> None:
 
 
 def test_build_findings_flags_critical_issues() -> None:
-    root = Path(__file__).resolve().parents[1]
-    mod = load_module(root / "scripts" / "review_devin_delegate.py")
+    mod = load_module(_review_script())
 
     payload = {
         "metrics": {
@@ -96,8 +108,7 @@ def test_build_findings_flags_critical_issues() -> None:
 
 
 def test_build_findings_returns_status_when_healthy() -> None:
-    root = Path(__file__).resolve().parents[1]
-    mod = load_module(root / "scripts" / "review_devin_delegate.py")
+    mod = load_module(_review_script())
 
     payload = {
         "metrics": {
