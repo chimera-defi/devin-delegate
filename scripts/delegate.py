@@ -14,6 +14,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from tokens_saved import resolve_parent_tokens, estimated_tokens_saved as compute_tokens_saved
+
 # The "extras" tooling (cost_estimator, safety_sandbox, result_cache,
 # telemetry_dashboard, parallel_batch) was moved out of this repo into the
 # delegate-skill install. Add that path so the guarded imports below resolve;
@@ -1348,9 +1351,8 @@ def run_delegate(
     parent_cost = estimate_parent_cost(parent_tokens, delegate_output_tokens, pricing_config)
     savings_info = calculate_savings(delegate_cost, parent_cost)
     
-    # Calculate token savings (legacy metric)
-    parent_estimate_tokens = max(parent_tokens, delegate_input_tokens) * 3
-    saved = max(0, parent_estimate_tokens - delegate_output_tokens)
+    # Calculate token savings (canonical helper)
+    saved = compute_tokens_saved(resolve_parent_tokens(envelope, delegate_input_tokens), delegate_output_tokens)
 
     # Collect provider warnings
     provider_warnings = []
