@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -728,7 +729,10 @@ def resolve_fallback_settings(
     fallback_provider_override: str | None = None,
 ) -> tuple[str, str, str]:
     fallback_engine = str(fallback_engine_override if fallback_engine_override else config.get("fallback_engine", "codex")).strip()
-    fallback_model = str(fallback_model_override if fallback_model_override else config.get("fallback_model", "gpt-5.5")).strip()
+    # A null/absent fallback_model resolves to "" (not the literal "None") so the
+    # codex path can omit --model and defer to the user's Codex config default.
+    _fb_model = fallback_model_override if fallback_model_override else config.get("fallback_model")
+    fallback_model = str(_fb_model).strip() if _fb_model else ""
     fallback_provider = str(fallback_provider_override if fallback_provider_override else config.get("fallback_provider", "openai")).strip()
     return fallback_engine, fallback_model, fallback_provider
 
@@ -1255,13 +1259,20 @@ def run_delegate(
                 str(envelope_path),
                 "--fallback-engine",
                 effective_fallback_engine,
-                "--model",
-                effective_fallback_model,
                 "--provider",
                 effective_fallback_provider,
                 "--timeout",
                 str(max(timeout_seconds, 300)),
             ]
+            # Only pin a fallback model when one is configured; an empty/sentinel
+            # model lets codex use the user's Codex config default (spark parity).
+            # Non-codex engines still need a concrete model, so resolve a default.
+            _fb_model = effective_fallback_model
+            _is_sentinel = (not _fb_model) or str(_fb_model).strip().lower() in ("default", "spark", "null", "none")
+            if _is_sentinel and effective_fallback_engine != "codex":
+                _fb_model = default_model_for_engine(config, effective_fallback_engine, "")
+            if _fb_model and str(_fb_model).strip().lower() not in ("default", "spark", "null", "none"):
+                fallback_cmd += ["--model", str(_fb_model)]
             f_rc, f_out, f_err, f_latency_ms = call(fallback_cmd, timeout=max(timeout_seconds, 300))
             latency_ms += f_latency_ms
             attempt_latencies.append(round(f_latency_ms, 2))
@@ -1360,12 +1371,14 @@ def run_delegate(
         "record",
         "--repo-root",
         str(repo_root),
+        "--event-uuid",
+        uuid.uuid4().hex,
         "--status",
         status,
         "--task-class",
         str(task_class),
         "--model-used",
-        f"devin:{model}" if not fallback_used else f"fallback:{effective_fallback_engine}:{effective_fallback_model}",
+        f"devin:{model}" if not fallback_used else f"fallback:{effective_fallback_engine}:{effective_fallback_model or 'default'}",
         "--parent-context-tokens",
         str(parent_tokens),
         "--delegate-input-tokens",

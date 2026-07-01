@@ -6,6 +6,7 @@ import argparse
 import json
 import subprocess
 import sys
+import uuid
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -221,6 +222,8 @@ def main() -> int:
 
     record = sub.add_parser("record")
     record.add_argument("--repo-root", type=Path, default=None)
+    # Per-event id for lossless dedup in the global aggregator (going forward).
+    record.add_argument("--event-uuid", default="")
     record.add_argument("--event", default="delegate_invocation")
     record.add_argument("--status", default="ok")
     record.add_argument("--task-class", default="unknown")
@@ -258,6 +261,8 @@ def main() -> int:
                 meta = {"raw": args.meta}
 
         payload = {
+            "uuid": args.event_uuid or uuid.uuid4().hex,
+            "repo": root.name,
             "event": args.event,
             "status": args.status,
             "task_class": args.task_class,
