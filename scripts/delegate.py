@@ -14,6 +14,17 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+# The "extras" tooling (cost_estimator, safety_sandbox, result_cache,
+# telemetry_dashboard, parallel_batch) was moved out of this repo into the
+# delegate-skill install. Add that path so the guarded imports below resolve;
+# harmless when the path is absent (each import falls through to its fallback).
+_EXTRAS_DIR = os.environ.get(
+    "DELEGATE_EXTRAS_DIR",
+    str(Path.home() / ".claude" / "skills" / "delegate-skill" / "delegate-extras" / "devin"),
+)
+if Path(_EXTRAS_DIR).is_dir() and _EXTRAS_DIR not in sys.path:
+    sys.path.insert(0, _EXTRAS_DIR)
+
 # Import cost estimation utilities
 try:
     from cost_estimator import (

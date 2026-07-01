@@ -2,6 +2,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EXTRAS="${DELEGATE_EXTRAS_DIR:-$HOME/.claude/skills/delegate-skill/delegate-extras/devin}"
+
+require_extras() {
+  if [ ! -x "$1" ]; then
+    echo "error: delegate-extras tool not found: $1" >&2
+    echo "hint: install/update the delegate-skill router → bash ~/.claude/skills/delegate-skill/setup.sh" >&2
+    exit 3
+  fi
+}
 
 usage() {
   cat <<'USAGE'
@@ -47,31 +56,40 @@ case "$cmd" in
     exec "$SCRIPT_DIR/detect_bypass.py" "$@"
     ;;
   tune)
-    exec "$SCRIPT_DIR/tune_timeouts.py" "$@"
+    require_extras "$EXTRAS/tune_timeouts.py"
+    exec "$EXTRAS/tune_timeouts.py" "$@"
     ;;
   review)
-    exec "$SCRIPT_DIR/review_devin_delegate.py" "$@"
+    require_extras "$EXTRAS/review_devin_delegate.py"
+    exec "$EXTRAS/review_devin_delegate.py" "$@"
     ;;
   summarize|summary)
-    exec "$SCRIPT_DIR/summarize_devin_delegate.py" "$@"
+    require_extras "$EXTRAS/summarize_devin_delegate.py"
+    exec "$EXTRAS/summarize_devin_delegate.py" "$@"
     ;;
   dashboard)
-    exec "$SCRIPT_DIR/telemetry_dashboard.py" "$@"
+    require_extras "$EXTRAS/telemetry_dashboard.py"
+    exec "$EXTRAS/telemetry_dashboard.py" "$@"
     ;;
   session-nudge|nudge)
-    exec "$SCRIPT_DIR/session_nudge.py" "$@"
+    require_extras "$EXTRAS/session_nudge.py"
+    exec "$EXTRAS/session_nudge.py" "$@"
     ;;
   ci-gate)
-    exec "$SCRIPT_DIR/ci_gate.py" "$@"
+    require_extras "$EXTRAS/ci_gate.py"
+    exec "$EXTRAS/ci_gate.py" "$@"
     ;;
   workspace-install)
-    exec "$SCRIPT_DIR/install_workspace_skill.py" "$@"
+    require_extras "$EXTRAS/install_workspace_skill.py"
+    exec "$EXTRAS/install_workspace_skill.py" "$@"
     ;;
   workspace-audit)
-    exec "$SCRIPT_DIR/audit_workspace_skills.py" "$@"
+    require_extras "$EXTRAS/audit_workspace_skills.py"
+    exec "$EXTRAS/audit_workspace_skills.py" "$@"
     ;;
   usage-audit)
-    exec "$SCRIPT_DIR/audit_workspace_usage.py" "$@"
+    require_extras "$EXTRAS/audit_workspace_usage.py"
+    exec "$EXTRAS/audit_workspace_usage.py" "$@"
     ;;
   git-hook)
     exec "$SCRIPT_DIR/install_git_hooks.py" "$@"
@@ -85,11 +103,14 @@ case "$cmd" in
     USAGE_OUT="$OUT_DIR/workspace-usage-30d-$STAMP.json"
     BYPASS_OUT="$OUT_DIR/workspace-bypass-30d-$STAMP.json"
 
+    require_extras "$EXTRAS/install_workspace_skill.py"
+    require_extras "$EXTRAS/audit_workspace_skills.py"
+    require_extras "$EXTRAS/audit_workspace_usage.py"
     mkdir -p "$OUT_DIR"
 
-    "$SCRIPT_DIR/install_workspace_skill.py" --workspace-root "$WORKSPACE_ROOT" >"$INSTALL_OUT"
-    "$SCRIPT_DIR/audit_workspace_skills.py" --workspace-root "$WORKSPACE_ROOT" --output "$AUDIT_OUT" >/dev/null
-    "$SCRIPT_DIR/audit_workspace_usage.py" --workspace-root "$WORKSPACE_ROOT" --days 30 --output "$USAGE_OUT" >/dev/null
+    "$EXTRAS/install_workspace_skill.py" --workspace-root "$WORKSPACE_ROOT" >"$INSTALL_OUT"
+    "$EXTRAS/audit_workspace_skills.py" --workspace-root "$WORKSPACE_ROOT" --output "$AUDIT_OUT" >/dev/null
+    "$EXTRAS/audit_workspace_usage.py" --workspace-root "$WORKSPACE_ROOT" --days 30 --output "$USAGE_OUT" >/dev/null
     "$SCRIPT_DIR/detect_bypass.py" --workspace-root "$WORKSPACE_ROOT" --days 30 --output "$BYPASS_OUT" >/dev/null
     "$SCRIPT_DIR/install_git_hooks.py" --workspace-root "$WORKSPACE_ROOT" >/dev/null
 
@@ -118,9 +139,9 @@ case "$cmd" in
     echo "  usage_report:   $USAGE_OUT"
     echo "  bypass_report:  $BYPASS_OUT"
 
-    if [ -x "$SCRIPT_DIR/review_devin_delegate.py" ]; then
+    if [ -x "$EXTRAS/review_devin_delegate.py" ]; then
       REVIEW_OUT="$OUT_DIR/workspace-review-30d-$STAMP.json"
-      "$SCRIPT_DIR/review_devin_delegate.py" --scope global --workspace-root "$WORKSPACE_ROOT" --output-json "$REVIEW_OUT" --json >/dev/null
+      "$EXTRAS/review_devin_delegate.py" --scope global --workspace-root "$WORKSPACE_ROOT" --output-json "$REVIEW_OUT" --json >/dev/null
       echo "  review_report:  $REVIEW_OUT"
     fi
 
