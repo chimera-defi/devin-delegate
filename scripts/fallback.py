@@ -10,6 +10,15 @@ import shutil
 from pathlib import Path
 
 
+def _run_with_timeout(cmd: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, returncode=124, stdout="", stderr=f"timeout after {timeout}s\n")
+    except (FileNotFoundError, OSError) as exc:
+        return subprocess.CompletedProcess(cmd, returncode=127, stdout="", stderr=f"failed to launch {cmd[0]}: {exc}\n")
+
+
 def run_codex(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
     # Omit --model when unset/sentinel so codex uses the user's config default
     # model (the same path `spark` uses). Standardizes fallback across delegates.
@@ -17,7 +26,7 @@ def run_codex(prompt: str, model: str, timeout: int) -> subprocess.CompletedProc
     if model and str(model).strip().lower() not in ("default", "spark", "null", "none"):
         cmd += ["--model", str(model)]
     cmd += [prompt]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    return _run_with_timeout(cmd, timeout)
 
 
 def run_pi(prompt: str, provider: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
@@ -30,21 +39,21 @@ def run_pi(prompt: str, provider: str, model: str, timeout: int) -> subprocess.C
         "--print",
         prompt,
     ]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    return _run_with_timeout(cmd, timeout)
 
 
 def run_kimi(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
     """Run Kimi as a fallback provider."""
     cmd = ["kimi", "exec", "--model", model]
     cmd += [prompt]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    return _run_with_timeout(cmd, timeout)
 
 
 def run_claude(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
     """Run Claude Code CLI as a fallback provider."""
     cmd = ["claude", "-p", "--model", model]
     cmd += [prompt]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    return _run_with_timeout(cmd, timeout)
 
 
 def main() -> int:
