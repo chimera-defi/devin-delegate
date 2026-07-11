@@ -1,13 +1,10 @@
 # Maintenance State
-last_run: 2026-06-27
+last_run: 2026-07-11
 focus: observability
 status: completed
 completed:
-  - fix(delegate.py): add FileNotFoundError catch in call() so missing binary returns rc=127 instead of crashing
-  - fix(delegate.py): log silent cache write failures to stderr instead of bare pass
-  - fix(mcp_server.py): replace deprecated asyncio.get_event_loop() with get_running_loop() in async context
-  - fix(parallel_batch.py): use concurrent.futures.TimeoutError for Python <3.11 compatibility
+  - fix(fallback.py): add _run_with_timeout() helper that catches TimeoutExpired (rc=124) and FileNotFoundError/OSError (rc=127); refactor run_codex/run_pi/run_kimi/run_claude to use it — mirrors kimi-delegate-skill pattern
 in_progress:
-pending:
-  - Add test coverage (from prior pass)
+pending: []
 known_failures:
+attempt_counts:
