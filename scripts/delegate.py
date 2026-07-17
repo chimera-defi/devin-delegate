@@ -1062,12 +1062,12 @@ def run_delegate(
             else:
                 print(
                     f"❌ Devin unreachable: {reason}\n"
-                    f"\n"
-                    f"To fix:\n"
-                    f"  1. Check auth: devin auth login\n"
-                    f"  2. Verify:      dd --health\n"
+                    "\n"
+                    "To fix:\n"
+                    "  1. Check auth: devin auth login\n"
+                    "  2. Verify:      dd --health\n"
                     f"  3. Then retry:  dd --task '{task}'\n"
-                    f"\n"
+                    "\n"
                     f"This fast-fail prevented a {compute_timeout(300, 'default', config, routing, {'files':0,'mb':0})}s timeout.",
                     flush=True,
                 )
@@ -1245,14 +1245,14 @@ def run_delegate(
 
         if error_category == "auth_error":
             print(
-                f"devin-delegate: auth/session error detected. "
-                f"Devin could not authenticate or its session expired.\n"
-                f"\n"
-                f"Steps to resume manually:\n"
-                f"  1. Run: `devin auth login`\n"
-                f"  2. Verify: `devin auth status`\n"
+                "devin-delegate: auth/session error detected. "
+                "Devin could not authenticate or its session expired.\n"
+                "\n"
+                "Steps to resume manually:\n"
+                "  1. Run: `devin auth login`\n"
+                "  2. Verify: `devin auth status`\n"
                 f"  3. Then re-run: devin-delegate --task '{task}'\n"
-                f"\n"
+                "\n"
                 f"Raw stderr:\n{last_stderr}\n",
                 flush=True,
             )
