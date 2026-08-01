@@ -68,6 +68,7 @@ def resolve_hooks_dir(repo_path: Path) -> tuple[Path, str]:
         ["git", "-C", str(repo_path), "rev-parse", "--git-path", "hooks"],
         capture_output=True,
         text=True,
+        timeout=5,
         check=False,
     )
     if hooks_proc.returncode == 0 and hooks_proc.stdout.strip():
@@ -80,6 +81,7 @@ def resolve_hooks_dir(repo_path: Path) -> tuple[Path, str]:
         ["git", "-C", str(repo_path), "config", "--get", "core.hooksPath"],
         capture_output=True,
         text=True,
+        timeout=5,
         check=False,
     )
     hooks_path = proc.stdout.strip() if proc.returncode == 0 else ""

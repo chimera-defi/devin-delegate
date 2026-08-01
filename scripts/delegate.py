@@ -83,14 +83,18 @@ def skill_root() -> Path:
 
 
 def current_repo_root(default_root: Path | None = None) -> Path:
-    proc = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode == 0 and proc.stdout.strip():
-        return Path(proc.stdout.strip())
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return Path(proc.stdout.strip())
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
     if default_root is not None:
         return default_root.resolve()
     return Path.cwd()
@@ -773,7 +777,10 @@ def build_envelope(task: str, context_file: str | None) -> dict:
     if context_file:
         cmd += ["--context-file", context_file]
 
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=True)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("plan_prompt.py timed out after 120s") from None
     try:
         return json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
@@ -924,6 +931,7 @@ def print_stats(repo_root: Path) -> int:
             [str(script_root() / "devin_delegate_telemetry.py"), "summary", "--repo-root", str(repo_root), "--days", "14"],
             capture_output=True,
             text=True,
+            timeout=30,
             check=False,
         )
         if proc.returncode != 0:
@@ -1413,12 +1421,15 @@ def run_delegate(
     if fallback_used:
         telemetry_cmd += ["--fallback-used", "--fallback-reason", fallback_reason]
 
-    telemetry_proc = subprocess.run(telemetry_cmd, capture_output=True, text=True, check=False)
-    if telemetry_proc.returncode != 0:
-        print(
-            f"warning: telemetry record failed ({telemetry_proc.returncode}): {telemetry_proc.stderr.strip()}",
-            flush=True,
-        )
+    try:
+        telemetry_proc = subprocess.run(telemetry_cmd, capture_output=True, text=True, timeout=30, check=False)
+        if telemetry_proc.returncode != 0:
+            print(
+                f"warning: telemetry record failed ({telemetry_proc.returncode}): {telemetry_proc.stderr.strip()}",
+                flush=True,
+            )
+    except subprocess.TimeoutExpired:
+        print("warning: telemetry record timed out after 30s", flush=True)
 
     if status == "auth_error":
         return 126
