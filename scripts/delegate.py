@@ -1425,8 +1425,10 @@ def run_delegate(
                 f"warning: telemetry record failed ({telemetry_proc.returncode}): {telemetry_proc.stderr.strip()}",
                 flush=True,
             )
-    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
-        print(f"warning: telemetry record skipped: {exc}", flush=True)
+    except subprocess.TimeoutExpired:
+        print("warning: telemetry record skipped: timed out after 10s", file=sys.stderr, flush=True)
+    except FileNotFoundError:
+        print("warning: telemetry record skipped: telemetry binary not found", file=sys.stderr, flush=True)
 
     if status == "auth_error":
         return 126
