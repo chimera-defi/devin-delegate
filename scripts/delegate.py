@@ -411,10 +411,10 @@ def suggest_task_from_git(repo_root: Path) -> tuple[str, str] | None:
         if not lines:
             return None
 
-        py_count = sum(1 for l in lines if l.endswith(".py"))
-        js_count = sum(1 for l in lines if l.endswith(".js") or l.endswith(".ts") or l.endswith(".jsx") or l.endswith(".tsx"))
-        test_count = sum(1 for l in lines if "test" in l.lower() or "spec" in l.lower())
-        md_count = sum(1 for l in lines if l.endswith(".md"))
+        py_count = sum(1 for fn in lines if fn.endswith(".py"))
+        js_count = sum(1 for fn in lines if fn.endswith(".js") or fn.endswith(".ts") or fn.endswith(".jsx") or fn.endswith(".tsx"))
+        test_count = sum(1 for fn in lines if "test" in fn.lower() or "spec" in fn.lower())
+        md_count = sum(1 for fn in lines if fn.endswith(".md"))
 
         if test_count > 0 and py_count > 0:
             return "Review changes to test files and suggest fixes for any broken tests.", "review"
@@ -888,7 +888,7 @@ def print_stats(repo_root: Path) -> int:
         auth = data.get("auth_errors", 0)
         timeouts = data.get("timeouts", 0)
 
-        print(f"📊 Devin Delegate Stats (last 14d)")
+        print("📊 Devin Delegate Stats (last 14d)")
         print(f"   Calls:        {calls}")
         print(f"   Fallback:     {fallback}%")
         print(f"   Tokens saved: {saved}")
@@ -920,7 +920,7 @@ def interactive_confirm(envelope: dict, timeout_seconds: int, workspace: Path) -
     else:
         constraints_str = str(constraints)
     print(f"\nConstraints: {constraints_str}")
-    print(f"\nAcceptance Criteria:")
+    print("\nAcceptance Criteria:")
     for i, criteria in enumerate(envelope.get('acceptance', []), 1):
         print(f"  {i}. {criteria}")
     
@@ -989,11 +989,11 @@ def run_delegate(
                 sandbox.print_results()
             
             if not summary["passed"]:
-                print(f"\n❌ Safety checks failed. Omit --safety-check to skip these checks, or fix the flagged issues.", flush=True)
+                print("\n❌ Safety checks failed. Omit --safety-check to skip these checks, or fix the flagged issues.", flush=True)
                 return 128  # Custom exit code for safety check failure
             
             if summary["has_warnings"] and strict_safety:
-                print(f"\n❌ Safety warnings in strict mode. Omit --strict-safety to treat warnings as non-fatal.", flush=True)
+                print("\n❌ Safety warnings in strict mode. Omit --strict-safety to treat warnings as non-fatal.", flush=True)
                 return 128
         
         health_cache = repo_root / "artifacts" / "devin-delegate" / ".health-cache"
@@ -1720,7 +1720,7 @@ def main() -> int:
     rc = run_delegate(task, effective_context_file, args.task_class, args.dry_run, args.print_envelope, config, routing, repo_root, workspace=args.workspace, show_cost=args.cost, timeout_override=args.timeout_override if args.timeout_override > 0 else None, quick=args.quick, interactive=args.interactive, safety_check=args.safety_check, strict_safety=args.strict_safety, use_cache=use_cache, cache_ttl=args.cache_ttl, fallback_engine_override=fallback_engine_override, fallback_provider_override=args.fallback_provider_legacy, fallback_model_override=args.fallback_model, fallback_pi_provider_override=args.fallback_pi_provider)
 
     if rc == 0 and not args.quick and not args.dry_run:
-        print(f"\n✅ Task completed via Devin wrapper. Run 'dd --stats' for telemetry.", flush=True)
+        print("\n✅ Task completed via Devin wrapper. Run 'dd --stats' for telemetry.", flush=True)
 
     return rc
 
