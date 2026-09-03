@@ -140,51 +140,6 @@ def estimate_tokens(text: str) -> int:
     return word_based
 
 
-def compress_envelope_content(envelope_text: str, max_length: int = 2000) -> str:
-    """
-    Compress envelope content to reduce token usage while preserving critical information.
-    
-    Args:
-        envelope_text: Full envelope text
-        max_length: Maximum length for compressed envelope
-    
-    Returns:
-        Compressed envelope text
-    """
-    if len(envelope_text) <= max_length:
-        return envelope_text
-    
-    lines = envelope_text.split('\n')
-    
-    # Prioritize sections: goal, acceptance, constraints
-    priority_sections = ['goal', 'acceptance', 'constraints', 'task_class']
-    compressed_lines = []
-    current_section = None
-    
-    for line in lines:
-        line_lower = line.lower().strip()
-        # Check if this line starts a priority section
-        for section in priority_sections:
-            if line_lower.startswith(section):
-                current_section = section
-                break
-        
-        # Always include priority section headers and content
-        if current_section in priority_sections[:3]:  # goal, acceptance, constraints
-            compressed_lines.append(line)
-        # Include other sections only if we have space
-        elif len('\n'.join(compressed_lines)) < max_length * 0.8:
-            compressed_lines.append(line)
-    
-    compressed = '\n'.join(compressed_lines)
-    
-    # If still too long, truncate from the end
-    if len(compressed) > max_length:
-        compressed = compressed[:max_length-3] + "..."
-    
-    return compressed
-
-
 def call(cmd: list[str], timeout: int, cwd: str | None = None, env: dict[str, str] | None = None) -> tuple[int, str, str, float]:
     start = time.perf_counter()
     run_env = dict(os.environ if env is None else env)
@@ -200,10 +155,6 @@ def call(cmd: list[str], timeout: int, cwd: str | None = None, env: dict[str, st
     except FileNotFoundError:
         latency_ms = (time.perf_counter() - start) * 1000.0
         return 127, "", f"binary not found: {cmd[0]}", latency_ms
-
-
-def devin_available() -> bool:
-    return shutil.which("devin") is not None
 
 
 def devin_auth_ok() -> bool:
