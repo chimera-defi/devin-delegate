@@ -52,13 +52,11 @@ except ImportError:
 
 # Import safety sandbox utilities
 try:
-    from safety_sandbox import SafetySandbox, run_safety_checks
+    from safety_sandbox import SafetySandbox
 except ImportError:
     # Fallback if safety_sandbox module not available
     def SafetySandbox(*args, **kwargs):
         return None
-    def run_safety_checks(*args, **kwargs):
-        return True, "Safety checks unavailable"
 
 # Import result cache utilities
 try:
