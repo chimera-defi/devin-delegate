@@ -1,7 +1,6 @@
 """Unit tests for pure helpers in devin_delegate_telemetry.py."""
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
