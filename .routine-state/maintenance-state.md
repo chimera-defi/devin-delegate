@@ -1,18 +1,17 @@
-# Maintenance State — 2026-09-17
+# Maintenance State - 2026-09-26
 
-**Run:** 2026-09-17T00:00:00Z  
-**DOW:** 4 (Thursday — Tests focus)  
-**Status:** COMPLETE  
-**PR:** https://github.com/chimera-defi/devin-delegate/pull/40
+last_run: 2026-09-26
+focus: Observability (DOW=6, async error paths)
+status: completed
 
-## Work Done
-- Added `tests/test_devin_wrapper_binary.py` (20 tests)
-- Covers `extract_task` (12 cases) and `should_intercept` (8 cases)
-- All 20 tests pass
+## Completed
+- fix(observability): devin_auth_ok() - split broad `except Exception` into
+  FileNotFoundError/TimeoutExpired (silent, expected) and Exception (log to stderr)
+  so unexpected auth-check failures surface instead of being silently swallowed.
+  PR: chore/maintenance-2026-09-26
 
-## Repos Processed
-- token-reduce-skill: PR #90 opened ✓
-- openclaw-autoresearch: PR #34 opened ✓
-- devin-delegate: PR #40 opened ✓
-- kimi-delegate-skill: no gap found (clean)
-- SharedDeposit: no gap found (clean)
+## Known Failures
+none
+
+## Attempt Counts
+- devin_auth_ok_observability: 1
