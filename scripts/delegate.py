@@ -169,7 +169,10 @@ def devin_auth_ok() -> bool:
             check=False,
         )
         return proc.returncode == 0 and "Logged in" in proc.stdout
-    except Exception:
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+    except Exception as exc:
+        print(f"warning: devin auth check error: {exc}", file=sys.stderr)
         return False
 
 
