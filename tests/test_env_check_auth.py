@@ -2,7 +2,6 @@
 """Tests for check_devin_auth() in env_check.py — previously zero coverage."""
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
