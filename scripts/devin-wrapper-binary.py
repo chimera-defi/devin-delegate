@@ -104,7 +104,11 @@ def main():
         if not real_devin:
             print("[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr)
             sys.exit(1)
-        os.execv(real_devin, [real_devin] + args)
+        try:
+            os.execv(real_devin, [real_devin] + args)
+        except OSError as exc:
+            print(f"[devin-delegate] Error: exec failed: {exc}", file=sys.stderr)
+            sys.exit(1)
 
     # Only intercept --print/--task calls
     if not should_intercept(args):
@@ -112,7 +116,11 @@ def main():
         if not real_devin:
             print("[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr)
             sys.exit(1)
-        os.execv(real_devin, [real_devin] + args)
+        try:
+            os.execv(real_devin, [real_devin] + args)
+        except OSError as exc:
+            print(f"[devin-delegate] Error: exec failed: {exc}", file=sys.stderr)
+            sys.exit(1)
 
     # Extract task
     task = extract_task(args)
@@ -122,7 +130,11 @@ def main():
         if not real_devin:
             print("[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr)
             sys.exit(1)
-        os.execv(real_devin, [real_devin] + args)
+        try:
+            os.execv(real_devin, [real_devin] + args)
+        except OSError as exc:
+            print(f"[devin-delegate] Error: exec failed: {exc}", file=sys.stderr)
+            sys.exit(1)
 
     # Delegate to devin-delegate
     print("[devin-delegate] Intercepted raw devin call -> routing through wrapper", file=sys.stderr)
@@ -142,7 +154,11 @@ def main():
         elif arg.startswith("--workspace="):
             delegate_cmd.append(arg)
 
-    os.execvpe("devin-delegate", delegate_cmd, env)
+    try:
+        os.execvpe("devin-delegate", delegate_cmd, env)
+    except OSError as exc:
+        print(f"[devin-delegate] Error: exec failed: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
