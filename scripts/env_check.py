@@ -23,13 +23,18 @@ def check_devin_auth() -> dict[str, str]:
     if not devin:
         return {"name": "devin-auth", "status": "skipped", "detail": "devin not installed"}
 
-    proc = subprocess.run(
-        [devin, "auth", "status"],
-        capture_output=True,
-        text=True,
-        timeout=15,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            [devin, "auth", "status"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {"name": "devin-auth", "status": "error", "detail": "auth check timed out after 15s"}
+    except (FileNotFoundError, OSError) as exc:
+        return {"name": "devin-auth", "status": "error", "detail": str(exc)}
     if proc.returncode == 0 and "Logged in" in proc.stdout:
         return {"name": "devin-auth", "status": "ok", "detail": "authenticated"}
 
