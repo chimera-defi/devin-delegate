@@ -279,7 +279,7 @@ class TestDefaultModelForEngine:
 
     def test_uses_builtin_default_when_missing(self):
         config = {"fallback_providers": {}}
-        assert default_model_for_engine(config, "codex", "fallback-model") == "gpt-5.5"
+        assert default_model_for_engine(config, "codex", "fallback-model") == "gpt-6.1-sol"
 
 
 class TestAutoContext:

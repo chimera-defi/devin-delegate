@@ -232,7 +232,7 @@ def default_model_for_engine(config: dict[str, Any], engine: str, fallback_model
             if isinstance(model, str) and model.strip():
                 return model.strip()
     defaults = {
-        "codex": "gpt-5.5",
+        "codex": "gpt-6.1-sol",
         "anthropic": "claude-3.5-sonnet",
         "claude": "claude-3.5-sonnet",
         "kimi": "kimi-default",
@@ -284,7 +284,7 @@ def resolve_clarification_with_guidance(
     cwd: str | None = None,
     env: dict[str, str] | None = None,
 ) -> tuple[bool, str, str, str, str, float, str]:
-    codex_model = default_model_for_engine(config, "codex", "gpt-5.5")
+    codex_model = default_model_for_engine(config, "codex", "gpt-6.1-sol")
     claude_model = default_model_for_engine(config, "anthropic", "claude-3.5-sonnet")
     attempts = [
         ("codex", codex_model, "openai"),
