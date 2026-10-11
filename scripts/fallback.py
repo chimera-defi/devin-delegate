@@ -30,6 +30,10 @@ def run_codex(prompt: str, model: str, timeout: int) -> subprocess.CompletedProc
 
 
 def run_pi(prompt: str, provider: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
+    if not model:
+        return subprocess.CompletedProcess(
+            ["pi"], returncode=2, stdout="", stderr="fallback error: --model is required for pi engine"
+        )
     cmd = [
         "pi",
         "--provider",
