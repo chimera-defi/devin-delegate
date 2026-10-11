@@ -25,15 +25,6 @@ def is_executable(path: str) -> bool:
     return bool(path) and os.path.isfile(path) and os.access(path, os.X_OK)
 
 
-VALUE_FLAGS = {
-    "--print",
-    "--task",
-    "--model",
-    "--timeout",
-    "--workspace",
-}
-
-
 def is_inside_delegate() -> bool:
     """Detect if we're being called from within devin-delegate (avoid recursion)."""
     if os.environ.get("DEVIN_DELEGATE_ACTIVE"):
