@@ -149,7 +149,7 @@ devin-delegate "add error handling to the API client"
 
 1. **Envelope** — `plan_prompt.py` builds a structured task envelope with `goal`, `acceptance`, `constraints`, `task_class`, and `output_schema`
 2. **Run** — `delegate.py` calls Devin with auto-scaled timeouts by task class (1.5x for `implement`/`debug`, 1.2x for `review`)
-3. **Fallback** — if Devin times out or errors, automatic fallback to Codex gpt-5.5; if auth error, exits 126 with manual resume steps instead
+3. **Fallback** — if Devin times out or errors, automatic fallback to Codex gpt-6.1-sol; if auth error, exits 126 with manual resume steps instead
 4. **Telemetry** — every run writes to `artifacts/devin-delegate/events.jsonl` and `history.jsonl` (rotated at 10MB)
 5. **Bypass detection** — `detect_bypass.py` scans `~/.claude/projects` and shell history for raw `devin` calls
 
