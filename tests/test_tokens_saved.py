@@ -4,6 +4,7 @@ Byte-identical across delegate-extras/shared/ and every wrapper's scripts/ so th
 drift in one vendored copy fails that repo's CI. See
 docs/workorder_standardize_tokens_saved_formula_20260701.md.
 """
+
 import importlib.util
 import os
 
@@ -51,7 +52,10 @@ def test_saved_explicit_multiplier():
 
 
 def test_resolve_prefers_measured_parent_context():
-    assert ts.resolve_parent_tokens({"metrics": {"parent_context_tokens": 1000}}, 200) == 1000
+    assert (
+        ts.resolve_parent_tokens({"metrics": {"parent_context_tokens": 1000}}, 200)
+        == 1000
+    )
 
 
 def test_resolve_falls_back_to_input_when_absent():
@@ -59,7 +63,9 @@ def test_resolve_falls_back_to_input_when_absent():
 
 
 def test_resolve_falls_back_when_metric_zero():
-    assert ts.resolve_parent_tokens({"metrics": {"parent_context_tokens": 0}}, 350) == 350
+    assert (
+        ts.resolve_parent_tokens({"metrics": {"parent_context_tokens": 0}}, 350) == 350
+    )
 
 
 def test_resolve_handles_missing_metrics_key():

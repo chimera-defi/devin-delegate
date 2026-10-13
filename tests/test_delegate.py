@@ -1,27 +1,29 @@
 #!/usr/bin/env python3
 """Basic unit tests for devin-delegate core functions."""
+
 import json
-import pytest
-from pathlib import Path
 import sys
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add scripts directory to path
 scripts_dir = Path(__file__).parent.parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
 
 from delegate import (
-    estimate_tokens,
+    build_auto_context_text,
+    call,
     classify_error,
+    compose_context_file,
     compute_timeout,
+    default_model_for_engine,
     estimate_repo_scale,
+    estimate_tokens,
     output_is_valid,
     output_needs_clarification,
-    call,
-    default_model_for_engine,
     resolve_fallback_settings,
-    build_auto_context_text,
-    compose_context_file,
     run_subagent_check,
 )
 
@@ -73,7 +75,7 @@ class TestComputeTimeout:
         config = {"timeout_seconds": 300, "max_timeout_seconds": 600}
         routing = {"default": {"timeout_scale": 1.0}}
         repo_scale = {"files": 100, "mb": 10}
-        
+
         result = compute_timeout(300, "default", config, routing, repo_scale)
         assert result == 300
 
@@ -81,8 +83,10 @@ class TestComputeTimeout:
         config = {"timeout_seconds": 300, "max_timeout_seconds": 600}
         routing = {"default": {"timeout_scale": 1.0}}
         repo_scale = {"files": 100, "mb": 10}
-        
-        result = compute_timeout(300, "default", config, routing, repo_scale, override=500)
+
+        result = compute_timeout(
+            300, "default", config, routing, repo_scale, override=500
+        )
         assert result == 500
 
     def test_large_repo_scaling(self):
@@ -90,11 +94,11 @@ class TestComputeTimeout:
             "timeout_seconds": 300,
             "max_timeout_seconds": 600,
             "large_repo_threshold_files": 10000,
-            "large_repo_timeout_multiplier": 2.0
+            "large_repo_timeout_multiplier": 2.0,
         }
         routing = {"default": {"timeout_scale": 1.0}}
         repo_scale = {"files": 15000, "mb": 100}
-        
+
         result = compute_timeout(300, "default", config, routing, repo_scale)
         assert result == 600  # 300 * 2.0
 
@@ -103,11 +107,11 @@ class TestComputeTimeout:
             "timeout_seconds": 300,
             "max_timeout_seconds": 500,
             "large_repo_threshold_files": 10000,
-            "large_repo_timeout_multiplier": 3.0
+            "large_repo_timeout_multiplier": 3.0,
         }
         routing = {"default": {"timeout_scale": 1.0}}
         repo_scale = {"files": 50000, "mb": 2000}
-        
+
         result = compute_timeout(300, "default", config, routing, repo_scale)
         assert result == 500  # Capped at max_timeout_seconds
 
@@ -158,13 +162,13 @@ class TestLoadTemplates:
 
     def test_load_templates_exists(self):
         from delegate import load_templates
-        
+
         templates = load_templates()
         assert isinstance(templates, dict)
         # Check that at least the default templates exist
         expected_templates = [
             "research-best-practices",
-            "implement-feature", 
+            "implement-feature",
             "debug-error",
             "review-pr",
             "browser-test",
@@ -172,14 +176,14 @@ class TestLoadTemplates:
             "migrate-deps",
             "security-audit",
             "perf-optimize",
-            "add-tests"
+            "add-tests",
         ]
         for template in expected_templates:
             assert template in templates, f"Template {template} not found"
 
     def test_template_structure(self):
         from delegate import load_templates
-        
+
         templates = load_templates()
         for name, template in templates.items():
             assert "task_class" in template
@@ -243,7 +247,11 @@ class TestResolveFallbackSettings:
     def test_null_model_resolves_empty(self):
         # A null/absent fallback_model must resolve to "" (never the literal
         # "None") so the codex path can omit --model and use the config default.
-        config = {"fallback_engine": "codex", "fallback_model": None, "fallback_provider": "openai"}
+        config = {
+            "fallback_engine": "codex",
+            "fallback_model": None,
+            "fallback_provider": "openai",
+        }
         engine, model, provider = resolve_fallback_settings(config)
         assert engine == "codex"
         assert model == ""
@@ -271,15 +279,18 @@ class TestDefaultModelForEngine:
 
     def test_prefers_configured_provider_default(self):
         config = {
-            "fallback_providers": {
-                "anthropic": {"default_model": "claude-3.5-sonnet"}
-            }
+            "fallback_providers": {"anthropic": {"default_model": "claude-3.5-sonnet"}}
         }
-        assert default_model_for_engine(config, "anthropic", "fallback-model") == "claude-3.5-sonnet"
+        assert (
+            default_model_for_engine(config, "anthropic", "fallback-model")
+            == "claude-3.5-sonnet"
+        )
 
     def test_uses_builtin_default_when_missing(self):
         config = {"fallback_providers": {}}
-        assert default_model_for_engine(config, "codex", "fallback-model") == "gpt-6.1-sol"
+        assert (
+            default_model_for_engine(config, "codex", "fallback-model") == "gpt-6.1-sol"
+        )
 
 
 class TestAutoContext:
@@ -292,15 +303,26 @@ class TestAutoContext:
         history_path.write_text(
             "\n".join(
                 [
-                    json.dumps({"task": "first task", "timestamp": "2026-05-19T00:00:00+00:00"}),
-                    json.dumps({"task": "second task", "timestamp": "2026-05-19T01:00:00+00:00"}),
-                    json.dumps({"task": "third task", "timestamp": "2026-05-19T02:00:00+00:00"}),
+                    json.dumps(
+                        {"task": "first task", "timestamp": "2026-05-19T00:00:00+00:00"}
+                    ),
+                    json.dumps(
+                        {
+                            "task": "second task",
+                            "timestamp": "2026-05-19T01:00:00+00:00",
+                        }
+                    ),
+                    json.dumps(
+                        {"task": "third task", "timestamp": "2026-05-19T02:00:00+00:00"}
+                    ),
                 ]
             )
             + "\n",
             encoding="utf-8",
         )
-        text = build_auto_context_text(tmp_path, "new task", history_limit=2, max_chars=1000)
+        text = build_auto_context_text(
+            tmp_path, "new task", history_limit=2, max_chars=1000
+        )
         assert "Auto Context From Recent Delegations" in text
         assert "second task" in text
         assert "third task" in text
@@ -313,7 +335,8 @@ class TestAutoContext:
         history_dir.mkdir(parents=True, exist_ok=True)
         history_path = history_dir / "history.jsonl"
         history_path.write_text(
-            json.dumps({"task": "prior task", "timestamp": "2026-05-19T03:00:00+00:00"}) + "\n",
+            json.dumps({"task": "prior task", "timestamp": "2026-05-19T03:00:00+00:00"})
+            + "\n",
             encoding="utf-8",
         )
 
@@ -344,10 +367,14 @@ class TestSubagentCheck:
             "auto_context_max_chars": 4000,
         }
 
-        with patch("delegate.shutil.which") as which_mock, patch("delegate.devin_auth_ok") as auth_mock, patch(
-            "delegate.build_envelope"
-        ) as envelope_mock:
-            which_mock.side_effect = lambda name: "/usr/bin/" + name if name in ("devin", "codex", "claude") else None
+        with (
+            patch("delegate.shutil.which") as which_mock,
+            patch("delegate.devin_auth_ok") as auth_mock,
+            patch("delegate.build_envelope") as envelope_mock,
+        ):
+            which_mock.side_effect = lambda name: (
+                "/usr/bin/" + name if name in ("devin", "codex", "claude") else None
+            )
             auth_mock.return_value = True
             envelope_mock.return_value = {
                 "goal": "x",

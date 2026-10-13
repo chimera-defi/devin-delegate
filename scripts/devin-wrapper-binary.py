@@ -9,6 +9,7 @@ This wrapper is more robust than the bash shim because it works in:
 - Subprocess calls from any language
 - Environments where .bashrc is not sourced
 """
+
 import os
 import re
 import sys
@@ -33,9 +34,11 @@ def is_inside_delegate() -> bool:
         # Check parent process tree for delegate.py or devin-delegate.
         ppid = os.getppid()
         with open(f"/proc/{ppid}/cmdline", "rb") as f:
-            parent_cmd = f.read().replace(b"\x00", b" ").decode("utf-8", errors="ignore")
+            parent_cmd = (
+                f.read().replace(b"\x00", b" ").decode("utf-8", errors="ignore")
+            )
         # Use regex token matching to avoid false positives from directory paths
-        if re.search(r'\b(delegate\.py|devin-delegate)\b', parent_cmd):
+        if re.search(r"\b(delegate\.py|devin-delegate)\b", parent_cmd):
             return True
     except (FileNotFoundError, ProcessLookupError, PermissionError):
         pass
@@ -81,19 +84,26 @@ def should_intercept(args: list) -> bool:
         return False
 
     joined = " " + " ".join(args) + " "
-    has_task_flag = "--print " in joined or "--task " in joined or "--print=" in joined or "--task=" in joined
+    has_task_flag = (
+        "--print " in joined
+        or "--task " in joined
+        or "--print=" in joined
+        or "--task=" in joined
+    )
 
     return has_task_flag
 
 
-def main():
+def main() -> int:
     args = sys.argv[1:]
 
     # Recursion guard
     if is_inside_delegate():
         real_devin = find_real_devin()
         if not real_devin:
-            print("[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr)
+            print(
+                "[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr
+            )
             sys.exit(1)
         try:
             os.execv(real_devin, [real_devin] + args)
@@ -105,7 +115,9 @@ def main():
     if not should_intercept(args):
         real_devin = find_real_devin()
         if not real_devin:
-            print("[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr)
+            print(
+                "[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr
+            )
             sys.exit(1)
         try:
             os.execv(real_devin, [real_devin] + args)
@@ -119,7 +131,9 @@ def main():
         # No task found, pass through to real devin
         real_devin = find_real_devin()
         if not real_devin:
-            print("[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr)
+            print(
+                "[devin-delegate] Error: Cannot find real devin binary", file=sys.stderr
+            )
             sys.exit(1)
         try:
             os.execv(real_devin, [real_devin] + args)
@@ -128,7 +142,10 @@ def main():
             sys.exit(1)
 
     # Delegate to devin-delegate
-    print("[devin-delegate] Intercepted raw devin call -> routing through wrapper", file=sys.stderr)
+    print(
+        "[devin-delegate] Intercepted raw devin call -> routing through wrapper",
+        file=sys.stderr,
+    )
 
     # Set environment to avoid re-interception
     env = os.environ.copy()

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Telemetry store and summaries for devin-delegate."""
+
 from __future__ import annotations
 
 import argparse
@@ -67,7 +68,13 @@ def record_event(repo_root: Path, payload: dict[str, Any]) -> None:
         handle.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
-def load_events(repo_root: Path, days: int | None = None, task_class: str | None = None, status: str | None = None, model: str | None = None) -> list[dict[str, Any]]:
+def load_events(
+    repo_root: Path,
+    days: int | None = None,
+    task_class: str | None = None,
+    status: str | None = None,
+    model: str | None = None,
+) -> list[dict[str, Any]]:
     path = events_path(repo_root)
     if not path.exists():
         return []
@@ -96,7 +103,10 @@ def load_events(repo_root: Path, days: int | None = None, task_class: str | None
                     if ts is not None and ts < cutoff:
                         continue
             # Apply filters
-            if task_class is not None and str(event.get("task_class", "")) != task_class:
+            if (
+                task_class is not None
+                and str(event.get("task_class", "")) != task_class
+            ):
                 continue
             if status is not None and str(event.get("status", "")) != status:
                 continue
@@ -192,7 +202,11 @@ def summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         if isinstance(savings_usd, (int, float)) and savings_usd >= 0:
             total_savings_usd += float(savings_usd)
 
-    savings_pct = round((total_saved * 100.0 / total_parent_tokens), 2) if total_parent_tokens else 0.0
+    savings_pct = (
+        round((total_saved * 100.0 / total_parent_tokens), 2)
+        if total_parent_tokens
+        else 0.0
+    )
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -200,7 +214,9 @@ def summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         "status": dict(by_status),
         "task_classes": dict(by_task_class),
         "models": dict(by_model),
-        "fallback_rate_pct": round((fallback_count * 100.0 / calls), 2) if calls else 0.0,
+        "fallback_rate_pct": round((fallback_count * 100.0 / calls), 2)
+        if calls
+        else 0.0,
         "fallback_reasons": dict(fallback_reasons),
         "error_categories": dict(error_categories),
         "provider_warnings": dict(provider_warnings),
@@ -208,7 +224,9 @@ def summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         "timeouts": timeouts,
         "timeouts_in_large_repos": timeout_by_large_repo,
         "repo_scale_distribution": dict(by_repo_scale),
-        "avg_latency_ms": round(total_latency / latency_count, 2) if latency_count else 0.0,
+        "avg_latency_ms": round(total_latency / latency_count, 2)
+        if latency_count
+        else 0.0,
         "estimated_tokens_saved": total_saved,
         "estimated_savings_pct": savings_pct,
         "total_cost_usd": round(total_cost_usd, 4),
@@ -242,12 +260,33 @@ def main() -> int:
     summary = sub.add_parser("summary")
     summary.add_argument("--repo-root", type=Path, default=None)
     summary.add_argument("--days", type=int, default=14)
-    summary.add_argument("--task_class", type=str, default=None, help="Filter by task class (implement, debug, research, etc.)")
-    summary.add_argument("--status", type=str, default=None, help="Filter by status (ok, error, timeout, etc.)")
+    summary.add_argument(
+        "--task_class",
+        type=str,
+        default=None,
+        help="Filter by task class (implement, debug, research, etc.)",
+    )
+    summary.add_argument(
+        "--status",
+        type=str,
+        default=None,
+        help="Filter by status (ok, error, timeout, etc.)",
+    )
     summary.add_argument("--model", type=str, default=None, help="Filter by model used")
-    summary.add_argument("--alert", action="store_true", help="Exit non-zero if health thresholds exceeded")
-    summary.add_argument("--fallback_threshold", type=float, default=15.0, help="Max acceptable fallback rate %%")
-    summary.add_argument("--auth_threshold", type=int, default=2, help="Max acceptable auth errors")
+    summary.add_argument(
+        "--alert",
+        action="store_true",
+        help="Exit non-zero if health thresholds exceeded",
+    )
+    summary.add_argument(
+        "--fallback_threshold",
+        type=float,
+        default=15.0,
+        help="Max acceptable fallback rate %%",
+    )
+    summary.add_argument(
+        "--auth_threshold", type=int, default=2, help="Max acceptable auth errors"
+    )
 
     args = parser.parse_args()
     root = args.repo_root if args.repo_root else repo_root_from_script()
@@ -282,7 +321,13 @@ def main() -> int:
         print(json.dumps({"ok": True, "path": str(events_path(root))}, indent=2))
         return 0
 
-    events = load_events(root, days=args.days, task_class=args.task_class, status=args.status, model=args.model)
+    events = load_events(
+        root,
+        days=args.days,
+        task_class=args.task_class,
+        status=args.status,
+        model=args.model,
+    )
     data = summarize(events)
     print(json.dumps(data, indent=2))
 

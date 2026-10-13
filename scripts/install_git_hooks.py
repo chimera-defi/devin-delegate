@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Install pre-commit hooks across workspace repos to block raw Devin bypass commits."""
+
 from __future__ import annotations
 
 import argparse
@@ -108,7 +109,9 @@ def strip_managed_block(existing: str) -> str:
 
     # Legacy block format (marker-only) inserted by older versions.
     lines = existing.splitlines(keepends=True)
-    marker_index = next((i for i, line in enumerate(lines) if HOOK_MARKER in line), None)
+    marker_index = next(
+        (i for i, line in enumerate(lines) if HOOK_MARKER in line), None
+    )
     if marker_index is None:
         return existing
 
@@ -120,7 +123,9 @@ def strip_managed_block(existing: str) -> str:
 
     end = len(lines) - 1
     for i in range(marker_index, len(lines)):
-        if lines[i].strip() == "exit 0" and all(not trailing.strip() for trailing in lines[i + 1 :]):
+        if lines[i].strip() == "exit 0" and all(
+            not trailing.strip() for trailing in lines[i + 1 :]
+        ):
             end = i
             break
 
@@ -138,7 +143,9 @@ def upsert_hook_content(existing: str, skill_root: str) -> str:
         return hook_script(skill_root)
 
     lines = base.splitlines(keepends=True)
-    last_nonempty = next((i for i in range(len(lines) - 1, -1, -1) if lines[i].strip()), None)
+    last_nonempty = next(
+        (i for i in range(len(lines) - 1, -1, -1) if lines[i].strip()), None
+    )
 
     if last_nonempty is not None and FINAL_EXIT_RE.match(lines[last_nonempty].strip()):
         before = "".join(lines[:last_nonempty]).rstrip("\n")
@@ -157,23 +164,49 @@ def install_hook(repo_path: Path, skill_root: Path, dry_run: bool = False) -> di
         hooks_dir.mkdir(parents=True, exist_ok=True)
 
     hook_path = hooks_dir / HOOK_NAME
-    existing = hook_path.read_text(encoding="utf-8", errors="ignore") if hook_path.exists() else ""
+    existing = (
+        hook_path.read_text(encoding="utf-8", errors="ignore")
+        if hook_path.exists()
+        else ""
+    )
     new_hook = upsert_hook_content(existing, str(skill_root))
 
     if existing == new_hook:
-        return {"repo": str(repo_path), "status": "already_installed", "action": "skipped", "hook_mode": mode}
+        return {
+            "repo": str(repo_path),
+            "status": "already_installed",
+            "action": "skipped",
+            "hook_mode": mode,
+        }
 
     if dry_run:
-        return {"repo": str(repo_path), "status": "would_install", "action": "dry_run", "hook_mode": mode}
+        return {
+            "repo": str(repo_path),
+            "status": "would_install",
+            "action": "dry_run",
+            "hook_mode": mode,
+        }
 
     hook_path.write_text(new_hook, encoding="utf-8")
     hook_path.chmod(0o755)
-    return {"repo": str(repo_path), "status": "installed", "action": "installed", "hook_mode": mode}
+    return {
+        "repo": str(repo_path),
+        "status": "installed",
+        "action": "installed",
+        "hook_mode": mode,
+    }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Install devin-delegate pre-commit hooks")
-    parser.add_argument("--workspace-root", default=os.environ.get("DEVIN_DELEGATE_WORKSPACE_ROOT", "/root/.openclaw/workspace/dev"))
+    parser = argparse.ArgumentParser(
+        description="Install devin-delegate pre-commit hooks"
+    )
+    parser.add_argument(
+        "--workspace-root",
+        default=os.environ.get(
+            "DEVIN_DELEGATE_WORKSPACE_ROOT", "/root/.openclaw/workspace/dev"
+        ),
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--output", default="", help="JSON output path")
     args = parser.parse_args()
@@ -183,14 +216,25 @@ def main() -> int:
 
     for repo in iter_workspace_repos(Path(args.workspace_root), include_worktrees=True):
         if not (repo / ".git").exists():
-            results.append({"repo": str(repo), "status": "no_git", "action": "skipped", "hook_mode": "none"})
+            results.append(
+                {
+                    "repo": str(repo),
+                    "status": "no_git",
+                    "action": "skipped",
+                    "hook_mode": "none",
+                }
+            )
             continue
         result = install_hook(repo, skill_root, dry_run=args.dry_run)
         results.append(result)
 
     report = {
         "installed": sum(1 for r in results if r["action"] == "installed"),
-        "already_installed": sum(1 for r in results if r["action"] == "skipped" and r["status"] == "already_installed"),
+        "already_installed": sum(
+            1
+            for r in results
+            if r["action"] == "skipped" and r["status"] == "already_installed"
+        ),
         "skipped_no_git": sum(1 for r in results if r["status"] == "no_git"),
         "dry_run": sum(1 for r in results if r["action"] == "dry_run"),
         "total": len(results),

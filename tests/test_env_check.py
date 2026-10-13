@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """Tests for env_check.py — previously zero coverage."""
+
 from __future__ import annotations
 
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 scripts_dir = Path(__file__).parent.parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
 
-from env_check import check_binary, check_repo_scale, check_devin_auth
+from env_check import check_binary, check_devin_auth, check_repo_scale
 
 
 class TestCheckBinary:
@@ -103,8 +104,10 @@ class TestCheckDevinAuth:
         proc.returncode = 0
         proc.stdout = "Logged in as user@example.com"
         proc.stderr = ""
-        with patch("env_check.shutil.which", return_value="/usr/bin/devin"), \
-             patch("env_check.subprocess.run", return_value=proc):
+        with (
+            patch("env_check.shutil.which", return_value="/usr/bin/devin"),
+            patch("env_check.subprocess.run", return_value=proc),
+        ):
             result = check_devin_auth()
         assert result["status"] == "ok"
         assert result["detail"] == "authenticated"
@@ -114,8 +117,10 @@ class TestCheckDevinAuth:
         proc.returncode = 1
         proc.stdout = ""
         proc.stderr = "Error: session expired, please login again"
-        with patch("env_check.shutil.which", return_value="/usr/bin/devin"), \
-             patch("env_check.subprocess.run", return_value=proc):
+        with (
+            patch("env_check.shutil.which", return_value="/usr/bin/devin"),
+            patch("env_check.subprocess.run", return_value=proc),
+        ):
             result = check_devin_auth()
         assert result["status"] == "auth_error"
 
@@ -124,7 +129,9 @@ class TestCheckDevinAuth:
         proc.returncode = 1
         proc.stdout = "some unexpected output"
         proc.stderr = "some unexpected error"
-        with patch("env_check.shutil.which", return_value="/usr/bin/devin"), \
-             patch("env_check.subprocess.run", return_value=proc):
+        with (
+            patch("env_check.shutil.which", return_value="/usr/bin/devin"),
+            patch("env_check.subprocess.run", return_value=proc),
+        ):
             result = check_devin_auth()
         assert result["status"] == "error"

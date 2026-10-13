@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Generate a structured delegation envelope for Devin."""
+
 from __future__ import annotations
 
 import argparse
@@ -8,13 +9,42 @@ import re
 import sys
 from pathlib import Path
 
-
 TASK_CLASS_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("research", re.compile(r"\b(find|search|research|investigate|discover|explore|look up|compare|analyze trend|survey)\b", re.I)),
-    ("browser", re.compile(r"\b(browser|screenshot|open url|navigate|click|test site|dogfood|page|web|ui test|e2e)\b", re.I)),
-    ("debug", re.compile(r"\b(debug|fix|error|exception|crash|broken|failing|traceback|root cause|investigate bug)\b", re.I)),
-    ("review", re.compile(r"\b(review|audit|assess|evaluate|check|inspect|security|vulnerability|pentest|risk|regression)\b", re.I)),
-    ("implement", re.compile(r"\b(implement|build|create|add feature|write code|develop|refactor|migrate|upgrade|modify|edit|patch)\b", re.I)),
+    (
+        "research",
+        re.compile(
+            r"\b(find|search|research|investigate|discover|explore|look up|compare|analyze trend|survey)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "browser",
+        re.compile(
+            r"\b(browser|screenshot|open url|navigate|click|test site|dogfood|page|web|ui test|e2e)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "debug",
+        re.compile(
+            r"\b(debug|fix|error|exception|crash|broken|failing|traceback|root cause|investigate bug)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "review",
+        re.compile(
+            r"\b(review|audit|assess|evaluate|check|inspect|security|vulnerability|pentest|risk|regression)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "implement",
+        re.compile(
+            r"\b(implement|build|create|add feature|write code|develop|refactor|migrate|upgrade|modify|edit|patch)\b",
+            re.IGNORECASE,
+        ),
+    ),
 ]
 
 
@@ -52,7 +82,11 @@ def main() -> int:
     parser.add_argument("--context-file")
     parser.add_argument("--accept", action="append", default=[])
     parser.add_argument("--write-scope", action="append", default=[])
-    parser.add_argument("--output-format", default="markdown", choices=["markdown", "json", "bullet-list"])
+    parser.add_argument(
+        "--output-format",
+        default="markdown",
+        choices=["markdown", "json", "bullet-list"],
+    )
     args = parser.parse_args()
 
     context_text = ""

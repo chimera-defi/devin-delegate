@@ -12,7 +12,14 @@ if _SCRIPTS.is_dir() and str(_SCRIPTS) not in sys.path:
 _EXTRAS = Path(
     os.environ.get(
         "DELEGATE_EXTRAS_DIR",
-        str(Path.home() / ".claude" / "skills" / "delegate-skill" / "delegate-extras" / "devin"),
+        str(
+            Path.home()
+            / ".claude"
+            / "skills"
+            / "delegate-skill"
+            / "delegate-extras"
+            / "devin"
+        ),
     )
 )
 if _EXTRAS.is_dir() and str(_EXTRAS) not in sys.path:
