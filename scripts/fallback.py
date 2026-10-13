@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
 """Fallback executor for devin-delegate."""
+
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
-import shutil
 from pathlib import Path
 
 
 def _run_with_timeout(cmd: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+        return subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout, check=False
+        )
     except subprocess.TimeoutExpired:
-        return subprocess.CompletedProcess(cmd, returncode=124, stdout="", stderr=f"timeout after {timeout}s")
+        return subprocess.CompletedProcess(
+            cmd, returncode=124, stdout="", stderr=f"timeout after {timeout}s"
+        )
     except FileNotFoundError:
-        return subprocess.CompletedProcess(cmd, returncode=127, stdout="", stderr=f"command not found: {cmd[0]}")
+        return subprocess.CompletedProcess(
+            cmd, returncode=127, stdout="", stderr=f"command not found: {cmd[0]}"
+        )
 
 
-def run_codex(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
+def run_codex(
+    prompt: str, model: str, timeout: int
+) -> subprocess.CompletedProcess[str]:
     # Omit --model when unset/sentinel so codex uses the user's config default
     # model (the same path `spark` uses). Standardizes fallback across delegates.
     cmd = ["codex", "exec"]
@@ -29,10 +38,15 @@ def run_codex(prompt: str, model: str, timeout: int) -> subprocess.CompletedProc
     return _run_with_timeout(cmd, timeout)
 
 
-def run_pi(prompt: str, provider: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
+def run_pi(
+    prompt: str, provider: str, model: str, timeout: int
+) -> subprocess.CompletedProcess[str]:
     if not model:
         return subprocess.CompletedProcess(
-            ["pi"], returncode=2, stdout="", stderr="fallback error: --model is required for pi engine"
+            ["pi"],
+            returncode=2,
+            stdout="",
+            stderr="fallback error: --model is required for pi engine",
         )
     cmd = [
         "pi",
@@ -52,7 +66,9 @@ def run_kimi(prompt: str, model: str, timeout: int) -> subprocess.CompletedProce
     return _run_with_timeout(cmd, timeout)
 
 
-def run_claude(prompt: str, model: str, timeout: int) -> subprocess.CompletedProcess[str]:
+def run_claude(
+    prompt: str, model: str, timeout: int
+) -> subprocess.CompletedProcess[str]:
     """Run Claude Code CLI as a fallback provider."""
     cmd = ["claude", "-p", "--model", model, prompt]
     return _run_with_timeout(cmd, timeout)
@@ -61,7 +77,11 @@ def run_claude(prompt: str, model: str, timeout: int) -> subprocess.CompletedPro
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--envelope-file", required=True)
-    parser.add_argument("--fallback-engine", default="codex", choices=["codex", "pi", "kimi", "claude", "anthropic"])
+    parser.add_argument(
+        "--fallback-engine",
+        default="codex",
+        choices=["codex", "pi", "kimi", "claude", "anthropic"],
+    )
     parser.add_argument("--model", default=None)
     parser.add_argument("--provider", default="openai")
     parser.add_argument("--timeout", type=int, default=300)
@@ -86,25 +106,33 @@ def main() -> int:
     if args.fallback_engine == "codex":
         if shutil.which("codex") is None:
             sys.stderr.write("fallback error: `codex` binary not found\n")
-            sys.stderr.write("Install: https://docs.example.com/codex or try --fallback-engine kimi\n")
+            sys.stderr.write(
+                "Install: https://docs.example.com/codex or try --fallback-engine kimi\n"
+            )
             return 127
         proc = run_codex(prompt, args.model, args.timeout)
     elif args.fallback_engine == "pi":
         if shutil.which("pi") is None:
             sys.stderr.write("fallback error: `pi` binary not found\n")
-            sys.stderr.write("Install: https://docs.example.com/pi or try --fallback-engine codex\n")
+            sys.stderr.write(
+                "Install: https://docs.example.com/pi or try --fallback-engine codex\n"
+            )
             return 127
         proc = run_pi(prompt, args.provider, args.model, args.timeout)
     elif args.fallback_engine == "kimi":
         if shutil.which("kimi") is None:
             sys.stderr.write("fallback error: `kimi` binary not found\n")
-            sys.stderr.write("Install: https://docs.example.com/kimi or try --fallback-engine claude\n")
+            sys.stderr.write(
+                "Install: https://docs.example.com/kimi or try --fallback-engine claude\n"
+            )
             return 127
         proc = run_kimi(prompt, args.model, args.timeout)
     elif args.fallback_engine in ("claude", "anthropic"):
         if shutil.which("claude") is None:
             sys.stderr.write("fallback error: `claude` binary not found\n")
-            sys.stderr.write("Install: https://docs.anthropic.com/claude-cli or try --fallback-engine kimi\n")
+            sys.stderr.write(
+                "Install: https://docs.anthropic.com/claude-cli or try --fallback-engine kimi\n"
+            )
             return 127
         proc = run_claude(prompt, args.model, args.timeout)
     else:

@@ -4,6 +4,7 @@ Each runner (run_codex, run_pi, run_kimi, run_claude) wraps subprocess.run.
 Tests verify the correct command is assembled for each engine.
 All tests use unittest.mock.patch — no subprocess calls.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -15,7 +16,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent.parent / "scripts"
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from fallback import run_codex, run_pi, run_kimi, run_claude
+from fallback import run_claude, run_codex, run_kimi, run_pi
 
 
 def _mock_proc(returncode: int = 0, stdout: str = "ok", stderr: str = "") -> MagicMock:
@@ -29,6 +30,7 @@ def _mock_proc(returncode: int = 0, stdout: str = "ok", stderr: str = "") -> Mag
 # ---------------------------------------------------------------------------
 # run_codex
 # ---------------------------------------------------------------------------
+
 
 class TestRunCodex:
     def test_basic_command_includes_codex_exec_and_prompt(self):
@@ -49,10 +51,14 @@ class TestRunCodex:
 
     def test_sentinel_model_default_omitted(self):
         for sentinel in ("default", "spark", "null", "none", "DEFAULT", "SPARK"):
-            with patch("fallback.subprocess.run", return_value=_mock_proc()) as mock_run:
+            with patch(
+                "fallback.subprocess.run", return_value=_mock_proc()
+            ) as mock_run:
                 run_codex("prompt", sentinel, 60)
                 cmd = mock_run.call_args[0][0]
-            assert "--model" not in cmd, f"--model should be omitted for sentinel '{sentinel}'"
+            assert "--model" not in cmd, (
+                f"--model should be omitted for sentinel '{sentinel}'"
+            )
 
     def test_empty_model_string_omitted(self):
         with patch("fallback.subprocess.run", return_value=_mock_proc()) as mock_run:
@@ -83,6 +89,7 @@ class TestRunCodex:
 # ---------------------------------------------------------------------------
 # run_pi
 # ---------------------------------------------------------------------------
+
 
 class TestRunPi:
     def test_command_includes_pi_and_print(self):
@@ -126,6 +133,7 @@ class TestRunPi:
 # run_kimi
 # ---------------------------------------------------------------------------
 
+
 class TestRunKimi:
     def test_command_starts_with_kimi_exec(self):
         with patch("fallback.subprocess.run", return_value=_mock_proc()) as mock_run:
@@ -165,6 +173,7 @@ class TestRunKimi:
 # ---------------------------------------------------------------------------
 # run_claude
 # ---------------------------------------------------------------------------
+
 
 class TestRunClaude:
     def test_command_starts_with_claude(self):

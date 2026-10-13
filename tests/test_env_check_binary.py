@@ -3,6 +3,7 @@
 check_devin_auth() was covered in PR #24 (2026-07-16).
 This file covers the remaining two functions.
 """
+
 from __future__ import annotations
 
 import sys
@@ -53,6 +54,7 @@ class TestCheckRepoScale(unittest.TestCase):
     def _make_proc(self, returncode, stdout):
         class _CP:
             pass
+
         obj = _CP()
         obj.returncode = returncode
         obj.stdout = stdout

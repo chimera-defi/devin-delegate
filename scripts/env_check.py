@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Standalone environment check for devin-delegate prerequisites."""
+
 from __future__ import annotations
 
 import argparse
@@ -21,7 +22,11 @@ def check_binary(name: str) -> dict[str, str]:
 def check_devin_auth() -> dict[str, str]:
     devin = shutil.which("devin")
     if not devin:
-        return {"name": "devin-auth", "status": "skipped", "detail": "devin not installed"}
+        return {
+            "name": "devin-auth",
+            "status": "skipped",
+            "detail": "devin not installed",
+        }
 
     try:
         proc = subprocess.run(
@@ -32,7 +37,11 @@ def check_devin_auth() -> dict[str, str]:
             check=False,
         )
     except subprocess.TimeoutExpired:
-        return {"name": "devin-auth", "status": "error", "detail": "auth check timed out after 15s"}
+        return {
+            "name": "devin-auth",
+            "status": "error",
+            "detail": "auth check timed out after 15s",
+        }
     except (FileNotFoundError, OSError) as exc:
         return {"name": "devin-auth", "status": "error", "detail": str(exc)}
     if proc.returncode == 0 and "Logged in" in proc.stdout:
@@ -41,13 +50,29 @@ def check_devin_auth() -> dict[str, str]:
     stderr = proc.stderr.lower() if proc.stderr else ""
     stdout = proc.stdout.lower() if proc.stdout else ""
     combined = stderr + stdout
-    if any(p in combined for p in ("auth", "unauthorized", "session", "expired", "token", "credential", "login", "not logged")):
+    if any(
+        p in combined
+        for p in (
+            "auth",
+            "unauthorized",
+            "session",
+            "expired",
+            "token",
+            "credential",
+            "login",
+            "not logged",
+        )
+    ):
         return {
             "name": "devin-auth",
             "status": "auth_error",
             "detail": f"session/auth issue: {proc.stderr[:200] or proc.stdout[:200]}",
         }
-    return {"name": "devin-auth", "status": "error", "detail": f"rc={proc.returncode}: {proc.stderr[:200]}"}
+    return {
+        "name": "devin-auth",
+        "status": "error",
+        "detail": f"rc={proc.returncode}: {proc.stderr[:200]}",
+    }
 
 
 def check_repo_scale(repo_root: Path) -> dict[str, int]:
@@ -90,7 +115,11 @@ def main() -> int:
 
     skill_root = Path(__file__).resolve().parents[1]
     config_path = skill_root / "config" / "devin-delegate.json"
-    config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
+    config = (
+        json.loads(config_path.read_text(encoding="utf-8"))
+        if config_path.exists()
+        else {}
+    )
 
     checks = [
         check_binary("devin"),
@@ -114,14 +143,18 @@ def main() -> int:
     elif repo_scale["files"] >= large_files or repo_scale["mb"] >= large_mb:
         scale_label = "large"
 
-    all_ok = all(c["status"] in ("ok", "skipped") for c in checks if c["name"] != "claude")
+    all_ok = all(
+        c["status"] in ("ok", "skipped") for c in checks if c["name"] != "claude"
+    )
     auth_issue = any(c["status"] == "auth_error" for c in checks)
 
     result = {
         "all_ok": all_ok,
         "auth_issue": auth_issue,
         "subagent_ready": all(
-            check["status"] == "ok" for check in checks if check["name"] in ("devin", "devin-auth", "codex")
+            check["status"] == "ok"
+            for check in checks
+            if check["name"] in ("devin", "devin-auth", "codex")
         ),
         "repo_scale": {**repo_scale, "label": scale_label},
         "checks": checks,

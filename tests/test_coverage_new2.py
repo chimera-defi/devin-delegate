@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Tests for previously zero-coverage modules: plan_prompt, repo_scan,
 session_nudge, and summarize_devin_delegate."""
+
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -266,13 +267,17 @@ class TestNudge:
         audit_dir = tmp_path / "devin-delegate" / "artifacts" / "devin-delegate"
         audit_dir.mkdir(parents=True)
         audit_file = audit_dir / "workspace-usage-7d-2026-06-18.json"
-        audit_file.write_text(json.dumps({
-            "overall": {
-                "bypass_rate_pct": 50.0,
-                "raw_devin_cmd_count": 5,
-                "delegate_cmd_count": 5,
-            }
-        }))
+        audit_file.write_text(
+            json.dumps(
+                {
+                    "overall": {
+                        "bypass_rate_pct": 50.0,
+                        "raw_devin_cmd_count": 5,
+                        "delegate_cmd_count": 5,
+                    }
+                }
+            )
+        )
         result = nudge(tmp_path, days=7, threshold=20.0)
         assert "bypass rate" in result
         assert "50.0%" in result
@@ -281,13 +286,17 @@ class TestNudge:
         audit_dir = tmp_path / "devin-delegate" / "artifacts" / "devin-delegate"
         audit_dir.mkdir(parents=True)
         audit_file = audit_dir / "workspace-usage-7d-2026-06-18.json"
-        audit_file.write_text(json.dumps({
-            "overall": {
-                "bypass_rate_pct": 5.0,
-                "raw_devin_cmd_count": 1,
-                "delegate_cmd_count": 19,
-            }
-        }))
+        audit_file.write_text(
+            json.dumps(
+                {
+                    "overall": {
+                        "bypass_rate_pct": 5.0,
+                        "raw_devin_cmd_count": 1,
+                        "delegate_cmd_count": 19,
+                    }
+                }
+            )
+        )
         result = nudge(tmp_path, days=7, threshold=20.0)
         # Should show usage stats but not the high-bypass warning
         assert "High bypass rate detected" not in result
@@ -297,7 +306,14 @@ class TestNudge:
 # summarize_devin_delegate — as_float, as_int, avg, delta, load_json, latest_files
 # ---------------------------------------------------------------------------
 
-from summarize_devin_delegate import as_float, as_int, avg, delta, load_json, latest_files
+from summarize_devin_delegate import (
+    as_float,
+    as_int,
+    avg,
+    delta,
+    latest_files,
+    load_json,
+)
 
 
 class TestAsFloat:
@@ -404,7 +420,7 @@ class TestLoadJson:
 
     def test_json_array_returns_none(self, tmp_path):
         f = tmp_path / "array.json"
-        f.write_text('[1, 2, 3]')
+        f.write_text("[1, 2, 3]")
         result = load_json(f)
         assert result is None
 
@@ -416,7 +432,7 @@ class TestLoadJson:
 
     def test_empty_dict_is_valid(self, tmp_path):
         f = tmp_path / "empty.json"
-        f.write_text('{}')
+        f.write_text("{}")
         result = load_json(f)
         assert result == {}
 
@@ -462,6 +478,7 @@ class TestLatestFiles:
             paths.append(f)
             # Stagger mtimes using os.utime
             import os
+
             mtime = 1_700_000_000 + i * 100
             os.utime(f, (mtime, mtime))
 

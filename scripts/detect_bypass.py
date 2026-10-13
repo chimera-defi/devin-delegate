@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Detect raw Devin CLI calls that bypass the devin-delegate skill wrapper."""
+
 from __future__ import annotations
 
 import argparse
@@ -237,7 +238,9 @@ def find_repo_for_cwd(cwd: Path, repo_paths: list[Path]) -> Path | None:
     return None
 
 
-def detect_bypasses(workspace_root: Path, days: int, repo_filter: Path | None = None) -> dict[str, Any]:
+def detect_bypasses(
+    workspace_root: Path, days: int, repo_filter: Path | None = None
+) -> dict[str, Any]:
     cutoff_dt = datetime.now(timezone.utc) - timedelta(days=days)
     cutoff_ts = cutoff_dt.timestamp()
 
@@ -245,7 +248,9 @@ def detect_bypasses(workspace_root: Path, days: int, repo_filter: Path | None = 
         repo_paths = [repo_filter.resolve()]
     else:
         repo_paths = iter_workspace_repos(workspace_root, include_worktrees=True)
-    repo_paths_by_specificity = sorted(repo_paths, key=lambda p: len(str(p.resolve())), reverse=True)
+    repo_paths_by_specificity = sorted(
+        repo_paths, key=lambda p: len(str(p.resolve())), reverse=True
+    )
 
     bypasses_by_repo: dict[str, list[dict[str, Any]]] = {}
     all_bypasses: list[dict[str, Any]] = []
@@ -260,7 +265,9 @@ def detect_bypasses(workspace_root: Path, days: int, repo_filter: Path | None = 
                 all_bypasses.append(hit)
                 bypasses_by_repo.setdefault(label, []).append(hit)
             try:
-                lines = session_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+                lines = session_file.read_text(
+                    encoding="utf-8", errors="ignore"
+                ).splitlines()
             except OSError:
                 continue
             for line in lines:
@@ -269,7 +276,11 @@ def detect_bypasses(workspace_root: Path, days: int, repo_filter: Path | None = 
                 except json.JSONDecodeError:
                     continue
                 for item in event.get("message", {}).get("content", []):
-                    if isinstance(item, dict) and item.get("type") == "tool_use" and item.get("name") == "Bash":
+                    if (
+                        isinstance(item, dict)
+                        and item.get("type") == "tool_use"
+                        and item.get("name") == "Bash"
+                    ):
                         cmd = item.get("input", {}).get("command", "")
                         if isinstance(cmd, str) and DELEGATE_CMD_RE.search(cmd):
                             total_delegate += 1
@@ -294,24 +305,38 @@ def detect_bypasses(workspace_root: Path, days: int, repo_filter: Path | None = 
                         continue
                     if event.get("type") == "session_meta":
                         payload = event.get("payload", {})
-                        raw_cwd = payload.get("cwd") if isinstance(payload, dict) else None
+                        raw_cwd = (
+                            payload.get("cwd") if isinstance(payload, dict) else None
+                        )
                         if isinstance(raw_cwd, str):
-                            repo = find_repo_for_cwd(Path(raw_cwd), repo_paths_by_specificity)
+                            repo = find_repo_for_cwd(
+                                Path(raw_cwd), repo_paths_by_specificity
+                            )
                         break
         except OSError:
             pass
 
-        if repo_filter is not None and (repo is None or repo.resolve() != repo_filter.resolve()):
+        if repo_filter is not None and (
+            repo is None or repo.resolve() != repo_filter.resolve()
+        ):
             continue
 
-        label = repo_label(repo, workspace_root) if (repo is not None and repo_filter is None) else (repo.name if repo is not None else "unknown")
+        label = (
+            repo_label(repo, workspace_root)
+            if (repo is not None and repo_filter is None)
+            else (repo.name if repo is not None else "unknown")
+        )
         for hit in hits:
             hit["repo"] = label
             all_bypasses.append(hit)
             bypasses_by_repo.setdefault(label, []).append(hit)
 
     total_raw = len(all_bypasses)
-    bypass_rate_pct = round((total_raw * 100.0 / (total_raw + total_delegate)), 2) if (total_raw + total_delegate) else 0.0
+    bypass_rate_pct = (
+        round((total_raw * 100.0 / (total_raw + total_delegate)), 2)
+        if (total_raw + total_delegate)
+        else 0.0
+    )
 
     return {
         "measured_at": datetime.now(timezone.utc).isoformat(),
@@ -344,7 +369,9 @@ def nudge_report(report: dict[str, Any]) -> str:
         "",
         "Recent bypasses by repo:",
     ]
-    for repo, count in sorted(report["bypasses_by_repo"].items(), key=lambda x: x[1], reverse=True):
+    for repo, count in sorted(
+        report["bypasses_by_repo"].items(), key=lambda x: x[1], reverse=True
+    ):
         if count > 0:
             lines.append(f"  {repo}: {count} raw call(s)")
     lines.extend(
@@ -366,13 +393,21 @@ def nudge_report(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Detect raw Devin CLI calls bypassing devin-delegate wrapper.")
+    parser = argparse.ArgumentParser(
+        description="Detect raw Devin CLI calls bypassing devin-delegate wrapper."
+    )
     parser.add_argument("--workspace-root", default="/root/.openclaw/workspace/dev")
     parser.add_argument("--days", type=int, default=7)
-    parser.add_argument("--repo", default="", help="Optional repo root path to scope analysis.")
-    parser.add_argument("--nudge", action="store_true", help="Print human-readable nudge")
+    parser.add_argument(
+        "--repo", default="", help="Optional repo root path to scope analysis."
+    )
+    parser.add_argument(
+        "--nudge", action="store_true", help="Print human-readable nudge"
+    )
     parser.add_argument("--output", default="")
-    parser.add_argument("--watch", action="store_true", help="Poll continuously for new bypasses")
+    parser.add_argument(
+        "--watch", action="store_true", help="Poll continuously for new bypasses"
+    )
     parser.add_argument("--watch-interval", type=int, default=30)
     args = parser.parse_args()
 
@@ -385,12 +420,18 @@ def main() -> int:
         last_bypasses = 0
         try:
             while True:
-                report = detect_bypasses(Path(args.workspace_root).resolve(), args.days, repo_filter=repo_filter)
+                report = detect_bypasses(
+                    Path(args.workspace_root).resolve(),
+                    args.days,
+                    repo_filter=repo_filter,
+                )
                 current = report["total_raw_devin_calls"]
                 if current != last_bypasses:
                     last_bypasses = current
                     ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
-                    print(f"[{ts}] bypasses={current} rate={report['bypass_rate_pct']}%")
+                    print(
+                        f"[{ts}] bypasses={current} rate={report['bypass_rate_pct']}%"
+                    )
                     if current > 0:
                         print(nudge_report(report))
                 time.sleep(args.watch_interval)
@@ -398,7 +439,9 @@ def main() -> int:
             print("\nWatch stopped.")
             return 0
 
-    report = detect_bypasses(Path(args.workspace_root).resolve(), args.days, repo_filter=repo_filter)
+    report = detect_bypasses(
+        Path(args.workspace_root).resolve(), args.days, repo_filter=repo_filter
+    )
     if args.nudge:
         print(nudge_report(report))
         return 0

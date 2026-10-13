@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests for review_devin_delegate.py."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -9,7 +10,14 @@ from pathlib import Path
 _EXTRAS = Path(
     os.environ.get(
         "DELEGATE_EXTRAS_DIR",
-        str(Path.home() / ".claude" / "skills" / "delegate-skill" / "delegate-extras" / "devin"),
+        str(
+            Path.home()
+            / ".claude"
+            / "skills"
+            / "delegate-skill"
+            / "delegate-extras"
+            / "devin"
+        ),
     )
 )
 

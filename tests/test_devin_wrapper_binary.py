@@ -4,6 +4,7 @@ Covers:
 - extract_task: --print/--task flags, = syntax, positional fallback
 - should_intercept: flag detection
 """
+
 from __future__ import annotations
 
 import importlib.util

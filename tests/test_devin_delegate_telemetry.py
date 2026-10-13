@@ -1,4 +1,5 @@
 """Unit tests for pure helpers in devin_delegate_telemetry.py."""
+
 from __future__ import annotations
 
 import sys
@@ -7,10 +8,10 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from devin_delegate_telemetry import _maybe_rotate, events_path, summarize  # noqa: E402
-
+from devin_delegate_telemetry import _maybe_rotate, events_path, summarize
 
 # ── events_path ───────────────────────────────────────────────────────────────
+
 
 class TestEventsPath:
     def test_returns_path_under_artifacts(self, tmp_path: Path) -> None:
@@ -27,6 +28,7 @@ class TestEventsPath:
 
 
 # ── _maybe_rotate ─────────────────────────────────────────────────────────────
+
 
 class TestMaybeRotate:
     def test_no_rotate_when_file_does_not_exist(self, tmp_path: Path) -> None:
@@ -82,6 +84,7 @@ class TestMaybeRotate:
 
 
 # ── summarize ─────────────────────────────────────────────────────────────────
+
 
 def _make_event(**overrides: object) -> dict:
     base = {

@@ -171,31 +171,33 @@ Add to your Cline settings:
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+
 async def main():
     # Create server parameters
     server_params = StdioServerParameters(
-        command="python3",
-        args=["/path/to/mcp_server.py"]
+        command="python3", args=["/path/to/mcp_server.py"]
     )
-    
+
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             # Initialize session
             await session.initialize()
-            
+
             # List available tools
             tools = await session.list_tools()
             print(f"Available tools: {[tool.name for tool in tools.tools]}")
-            
+
             # Call a tool
-            result = await session.call_tool("delegate_task", {
-                "task": "Review code for bugs",
-                "task_class": "review"
-            })
+            result = await session.call_tool(
+                "delegate_task",
+                {"task": "Review code for bugs", "task_class": "review"},
+            )
             print(f"Result: {result}")
+
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(main())
 ```
 
@@ -220,30 +222,31 @@ The server loads configuration from:
 
 ```python
 # Delegate tasks one by one
-result1 = await session.call_tool("delegate_task", {
-    "task": "Implement feature A",
-    "task_class": "implement"
-})
+result1 = await session.call_tool(
+    "delegate_task", {"task": "Implement feature A", "task_class": "implement"}
+)
 
-result2 = await session.call_tool("delegate_task", {
-    "task": "Test feature A",
-    "task_class": "debug"
-})
+result2 = await session.call_tool(
+    "delegate_task", {"task": "Test feature A", "task_class": "debug"}
+)
 ```
 
 ### Parallel Batch Processing
 
 ```python
 # Process multiple tasks in parallel
-result = await session.call_tool("batch_delegate", {
-    "tasks": [
-        {"task": "Task 1", "task_class": "implement"},
-        {"task": "Task 2", "task_class": "review"},
-        {"task": "Task 3", "task_class": "debug"}
-    ],
-    "parallel": true,
-    "max_workers": 3
-})
+result = await session.call_tool(
+    "batch_delegate",
+    {
+        "tasks": [
+            {"task": "Task 1", "task_class": "implement"},
+            {"task": "Task 2", "task_class": "review"},
+            {"task": "Task 3", "task_class": "debug"},
+        ],
+        "parallel": true,
+        "max_workers": 3,
+    },
+)
 ```
 
 ### Monitoring and Telemetry

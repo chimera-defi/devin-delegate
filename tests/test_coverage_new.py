@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Tests for previously zero-coverage modules: validate_config, cost_estimator,
 env_check (check_binary / check_repo_scale), and result_cache."""
+
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -18,8 +19,8 @@ sys.path.insert(0, str(scripts_dir))
 
 from validate_config import (
     load_json,
-    validate_required_fields,
     validate_fallback_providers,
+    validate_required_fields,
     validate_timeout_values,
     validate_version_consistency,
 )
@@ -131,7 +132,7 @@ class TestValidateVersionConsistency:
 # cost_estimator
 # ---------------------------------------------------------------------------
 
-from cost_estimator import estimate_cost, calculate_savings
+from cost_estimator import calculate_savings, estimate_cost
 
 PRICING = {
     "providers": {
@@ -272,7 +273,9 @@ class TestResultCache:
     def test_expired_entry_returns_none(self, tmp_path):
         cache = ResultCache(cache_dir=tmp_path, ttl_seconds=0)
         cache.set("aging task", "result text")
-        import time; time.sleep(0.01)
+        import time
+
+        time.sleep(0.01)
         assert cache.get("aging task") is None
 
     def test_cache_dir_created_automatically(self, tmp_path):
