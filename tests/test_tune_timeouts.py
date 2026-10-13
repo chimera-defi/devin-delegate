@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Tests for tune_timeouts.py."""
+
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Add scripts directory to path
 scripts_dir = Path(__file__).parent.parent / "scripts"
@@ -56,8 +57,16 @@ def test_classify_scale() -> None:
 def test_analyze_computes_rates_per_scale_and_task_class() -> None:
     events = [
         make_event(task_class="implement", repo_scale={"files": 100, "mb": 5}),
-        make_event(task_class="review", repo_scale={"files": 12000, "mb": 50}, fallback_reason="timeout"),
-        make_event(task_class="debug", repo_scale={"files": 60000, "mb": 50}, error_category="timeout"),
+        make_event(
+            task_class="review",
+            repo_scale={"files": 12000, "mb": 50},
+            fallback_reason="timeout",
+        ),
+        make_event(
+            task_class="debug",
+            repo_scale={"files": 60000, "mb": 50},
+            error_category="timeout",
+        ),
         make_event(task_class="implement", repo_scale=None, status="timeout"),
         make_event(event_name="health_check", repo_scale={"files": 10000, "mb": 500}),
     ]

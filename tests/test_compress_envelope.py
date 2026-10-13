@@ -1,12 +1,13 @@
 """Tests for compress_envelope_content() in delegate.py."""
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 from delegate import compress_envelope_content
 
-
 # ── short text ────────────────────────────────────────────────────────────────
+
 
 def test_short_text_returned_unchanged():
     text = "hello world"
@@ -24,6 +25,7 @@ def test_empty_string_returned_unchanged():
 
 # ── custom max_length ─────────────────────────────────────────────────────────
 
+
 def test_custom_max_length_short_text():
     text = "short"
     assert compress_envelope_content(text, max_length=100) == text
@@ -36,6 +38,7 @@ def test_custom_max_length_long_text_truncates():
 
 
 # ── priority section preservation ────────────────────────────────────────────
+
 
 def _make_long_envelope() -> str:
     """Build an envelope whose total length well exceeds 2000 chars."""
@@ -71,6 +74,7 @@ def test_result_ends_with_ellipsis_when_still_too_long():
 
 # ── non-priority sections included while under 80 % budget ───────────────────
 
+
 def test_non_priority_lines_included_within_budget():
     # A short envelope where non-priority lines fit in the 80% budget
     text = "preamble: info\ngoal: do it\nextra: metadata\n" + "x\n" * 10
@@ -79,6 +83,7 @@ def test_non_priority_lines_included_within_budget():
 
 
 # ── task_class section ────────────────────────────────────────────────────────
+
 
 def test_task_class_not_in_top_priority_but_can_appear():
     # task_class is in priority_sections list but NOT in [:3] — it does NOT get
@@ -90,6 +95,7 @@ def test_task_class_not_in_top_priority_but_can_appear():
 
 
 # ── multiline envelope round-trip ────────────────────────────────────────────
+
 
 def test_multiline_short_envelope_unchanged():
     lines = ["goal: build feature", "acceptance: tests green", "done: true"]

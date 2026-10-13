@@ -1,4 +1,5 @@
 """Tests for repo_scan.py and plan_prompt.py — previously zero coverage."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -13,7 +14,9 @@ from repo_scan import is_repo_root, iter_workspace_repos, repo_label
 
 
 def _load_plan_prompt():
-    spec = importlib.util.spec_from_file_location("plan_prompt", SCRIPTS / "plan_prompt.py")
+    spec = importlib.util.spec_from_file_location(
+        "plan_prompt", SCRIPTS / "plan_prompt.py"
+    )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -25,6 +28,7 @@ plan_prompt = _load_plan_prompt()
 # ---------------------------------------------------------------------------
 # repo_scan :: is_repo_root
 # ---------------------------------------------------------------------------
+
 
 class TestIsRepoRoot:
     def test_returns_true_when_git_dir_exists(self, tmp_path):
@@ -42,6 +46,7 @@ class TestIsRepoRoot:
 # ---------------------------------------------------------------------------
 # repo_scan :: iter_workspace_repos
 # ---------------------------------------------------------------------------
+
 
 class TestIterWorkspaceRepos:
     def _make_repo(self, parent: Path, name: str) -> Path:
@@ -112,6 +117,7 @@ class TestIterWorkspaceRepos:
 # repo_scan :: repo_label
 # ---------------------------------------------------------------------------
 
+
 class TestRepoLabel:
     def test_relative_label_inside_workspace(self, tmp_path):
         repo = tmp_path / "my-org" / "my-repo"
@@ -129,6 +135,7 @@ class TestRepoLabel:
 # ---------------------------------------------------------------------------
 # plan_prompt :: classify
 # ---------------------------------------------------------------------------
+
 
 class TestClassify:
     def test_research_keyword(self):
@@ -161,13 +168,16 @@ class TestClassify:
         assert result == "review"
 
     def test_higher_frequency_wins(self):
-        result = plan_prompt.classify("find search research explore compare analyze trends survey survey")
+        result = plan_prompt.classify(
+            "find search research explore compare analyze trends survey survey"
+        )
         assert result == "research"
 
 
 # ---------------------------------------------------------------------------
 # plan_prompt :: tokenize_estimate
 # ---------------------------------------------------------------------------
+
 
 class TestTokenizeEstimate:
     def test_single_word(self):
@@ -184,5 +194,7 @@ class TestTokenizeEstimate:
 
     def test_scales_with_length(self):
         short = plan_prompt.tokenize_estimate("one two three")
-        long = plan_prompt.tokenize_estimate("one two three four five six seven eight nine ten")
+        long = plan_prompt.tokenize_estimate(
+            "one two three four five six seven eight nine ten"
+        )
         assert long > short

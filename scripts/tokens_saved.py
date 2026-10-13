@@ -32,6 +32,10 @@ def resolve_parent_tokens(envelope, delegate_input_tokens):
     return max(0, int(delegate_input_tokens or 0))
 
 
-def estimated_tokens_saved(parent_tokens, delegate_output_tokens, multiplier=DEFAULT_MULTIPLIER):
+def estimated_tokens_saved(
+    parent_tokens, delegate_output_tokens, multiplier=DEFAULT_MULTIPLIER
+):
     """max(0, parent_tokens * K - delegate_output_tokens)."""
-    return max(0, int(parent_tokens or 0) * int(multiplier) - int(delegate_output_tokens or 0))
+    return max(
+        0, int(parent_tokens or 0) * int(multiplier) - int(delegate_output_tokens or 0)
+    )

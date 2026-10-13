@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Shared workspace repository discovery helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,7 +10,9 @@ def is_repo_root(path: Path) -> bool:
     return (path / ".git").exists()
 
 
-def iter_workspace_repos(workspace_root: Path, include_worktrees: bool = True) -> list[Path]:
+def iter_workspace_repos(
+    workspace_root: Path, include_worktrees: bool = True
+) -> list[Path]:
     repos: list[Path] = []
     seen: set[str] = set()
     root = workspace_root.resolve()
@@ -37,7 +40,11 @@ def iter_workspace_repos(workspace_root: Path, include_worktrees: bool = True) -
         if not worktrees_root.is_dir():
             continue
         for worktree in sorted(worktrees_root.iterdir()):
-            if worktree.is_dir() and not worktree.is_symlink() and is_repo_root(worktree):
+            if (
+                worktree.is_dir()
+                and not worktree.is_symlink()
+                and is_repo_root(worktree)
+            ):
                 add_repo(worktree)
     return repos
 

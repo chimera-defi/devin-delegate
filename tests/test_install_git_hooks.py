@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Tests for install_git_hooks.py."""
+
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
 from pathlib import Path
-
 
 scripts_dir = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(scripts_dir))
@@ -15,7 +15,9 @@ import install_git_hooks as install_mod
 
 
 def init_repo(repo_path: Path) -> None:
-    subprocess.run(["git", "init", str(repo_path)], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "init", str(repo_path)], check=True, capture_output=True, text=True
+    )
 
 
 def hook_path_for_repo(repo_path: Path) -> Path:
@@ -49,9 +51,7 @@ def test_existing_hook_with_trailing_exit_gets_gate_before_exit(tmp_path: Path) 
 
     hook_path = hook_path_for_repo(repo)
     hook_path.write_text(
-        "#!/usr/bin/env bash\n"
-        "echo \"existing hook\"\n"
-        "exit 0\n",
+        '#!/usr/bin/env bash\necho "existing hook"\nexit 0\n',
         encoding="utf-8",
     )
     hook_path.chmod(0o755)
@@ -60,12 +60,14 @@ def test_existing_hook_with_trailing_exit_gets_gate_before_exit(tmp_path: Path) 
     content = hook_path.read_text(encoding="utf-8")
     lines = content.splitlines()
 
-    assert "echo \"existing hook\"" in content
+    assert 'echo "existing hook"' in content
     assert content.count(install_mod.HOOK_BLOCK_START) == 1
     assert content.count(install_mod.HOOK_BLOCK_END) == 1
 
     final_nonempty = next(i for i in range(len(lines) - 1, -1, -1) if lines[i].strip())
-    block_start = next(i for i, line in enumerate(lines) if install_mod.HOOK_BLOCK_START in line)
+    block_start = next(
+        i for i, line in enumerate(lines) if install_mod.HOOK_BLOCK_START in line
+    )
     assert lines[final_nonempty].strip() == "exit 0"
     assert block_start < final_nonempty
 

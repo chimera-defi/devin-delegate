@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests for detect_bypass.py."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -38,7 +39,9 @@ def test_parse_bypasses_codex_detects_raw_devin(tmp_path: Path) -> None:
             },
         },
     ]
-    session.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    session.write_text(
+        "\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8"
+    )
 
     hits = mod.parse_bypasses_codex(session)
     assert len(hits) == 1
@@ -56,11 +59,15 @@ def test_parse_bypasses_codex_ignores_search_mentions(tmp_path: Path) -> None:
             "payload": {
                 "type": "function_call",
                 "name": "exec_command",
-                "arguments": json.dumps({"cmd": "rg -n \"devin --print|devin --task\" scripts -S"}),
+                "arguments": json.dumps(
+                    {"cmd": 'rg -n "devin --print|devin --task" scripts -S'}
+                ),
             },
         }
     ]
-    session.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    session.write_text(
+        "\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8"
+    )
 
     hits = mod.parse_bypasses_codex(session)
     assert hits == []
@@ -86,7 +93,7 @@ def test_parse_bypasses_codex_supports_parallel_tool_calls(tmp_path: Path) -> No
                             },
                             {
                                 "recipient_name": "functions.exec_command",
-                                "parameters": {"cmd": "devin --task \"do work\""},
+                                "parameters": {"cmd": 'devin --task "do work"'},
                             },
                         ]
                     }
@@ -94,14 +101,18 @@ def test_parse_bypasses_codex_supports_parallel_tool_calls(tmp_path: Path) -> No
             },
         }
     ]
-    session.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    session.write_text(
+        "\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8"
+    )
 
     hits = mod.parse_bypasses_codex(session)
     assert len(hits) == 1
     assert hits[0]["command"].startswith("devin --task")
 
 
-def test_parse_bypasses_codex_ignores_git_commit_message_literals(tmp_path: Path) -> None:
+def test_parse_bypasses_codex_ignores_git_commit_message_literals(
+    tmp_path: Path,
+) -> None:
     root = Path(__file__).resolve().parents[1]
     mod = load_module(root / "scripts" / "detect_bypass.py")
 
@@ -113,12 +124,14 @@ def test_parse_bypasses_codex_ignores_git_commit_message_literals(tmp_path: Path
                 "type": "function_call",
                 "name": "exec_command",
                 "arguments": json.dumps(
-                    {"cmd": "git commit -m \"docs: do not run devin --print directly\""}
+                    {"cmd": 'git commit -m "docs: do not run devin --print directly"'}
                 ),
             },
         }
     ]
-    session.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    session.write_text(
+        "\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8"
+    )
 
     hits = mod.parse_bypasses_codex(session)
     assert hits == []
@@ -188,7 +201,9 @@ def test_parse_bypasses_claude_detects_raw_devin_call(tmp_path: Path) -> None:
             },
         },
     ]
-    session.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    session.write_text(
+        "\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8"
+    )
 
     hits = mod.parse_bypasses_claude(session)
     assert len(hits) == 1
@@ -209,13 +224,15 @@ def test_parse_bypasses_claude_ignores_search_commands(tmp_path: Path) -> None:
                     {
                         "type": "tool_use",
                         "name": "Bash",
-                        "input": {"command": "grep -r \"devin --print\" scripts/"},
+                        "input": {"command": 'grep -r "devin --print" scripts/'},
                     }
                 ]
             },
         }
     ]
-    session.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    session.write_text(
+        "\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8"
+    )
 
     hits = mod.parse_bypasses_claude(session)
     assert hits == []
