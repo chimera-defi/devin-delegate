@@ -173,6 +173,14 @@ def devin_auth_ok() -> bool:
         return False
 
 
+def workspace_trust_skippable(workspace: Path) -> bool:
+    """Session dirs and git worktrees are ours; Devin's trust prompt cannot be answered in --print mode."""
+    ws = workspace.resolve()
+    if (Path.home() / ".sessions") in ws.parents:
+        return True
+    return (ws / ".git").is_file()
+
+
 def detect_untrusted_workspace(text: str) -> bool:
     """Devin refuses to run outside a trusted workspace; that is not an auth failure."""
     return bool(text) and "untrusted workspace" in text.lower()
@@ -1135,7 +1143,10 @@ def run_delegate(
     env = os.environ.copy()
     env["PWD"] = str(target_workspace)
 
-    cmd = [devin, "--permission-mode", "dangerous", "--print", prompt]
+    cmd = [devin, "--permission-mode", "dangerous"]
+    if workspace_trust_skippable(target_workspace):
+        cmd += ["--respect-workspace-trust", "false"]
+    cmd += ["--print", prompt]
 
     fallback_used = False
     fallback_reason = ""
