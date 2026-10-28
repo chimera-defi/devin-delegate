@@ -13,6 +13,7 @@ sys.path.insert(0, str(scripts_dir))
 from delegate import (
     estimate_tokens,
     classify_error,
+    workspace_trust_skippable,
     compute_timeout,
     estimate_repo_scale,
     output_is_valid,
@@ -400,3 +401,12 @@ class TestCodexFallbackModel:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+def test_workspace_trust_skippable(tmp_path):
+    (tmp_path / "plain").mkdir()
+    assert not workspace_trust_skippable(tmp_path / "plain")
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    (wt / ".git").write_text("gitdir: /x")
+    assert workspace_trust_skippable(wt)
