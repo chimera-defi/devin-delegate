@@ -65,6 +65,10 @@ class TestClassifyError:
     def test_unknown_error(self):
         assert classify_error(0, "", True) == "unknown"
 
+    def test_untrusted_workspace_is_not_auth_error(self):
+        msg = "Refusing to run in an untrusted workspace (session dir)"
+        assert classify_error(1, msg, True) == "untrusted_workspace"
+
 
 class TestComputeTimeout:
     """Test timeout computation function."""
