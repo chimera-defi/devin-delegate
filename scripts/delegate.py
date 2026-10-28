@@ -173,8 +173,23 @@ def devin_auth_ok() -> bool:
         return False
 
 
+def workspace_trust_skippable(workspace: Path) -> bool:
+    """Session dirs and git worktrees are ours; Devin's trust prompt cannot be answered in --print mode."""
+    ws = workspace.resolve()
+    if (Path.home() / ".sessions") in ws.parents:
+        return True
+    return (ws / ".git").is_file()
+
+
+def detect_untrusted_workspace(text: str) -> bool:
+    """Devin refuses to run outside a trusted workspace; that is not an auth failure."""
+    return bool(text) and "untrusted workspace" in text.lower()
+
+
 def detect_auth_error(stderr: str) -> bool:
     if not stderr:
+        return False
+    if detect_untrusted_workspace(stderr):
         return False
     patterns = [
         r"auth",
@@ -197,6 +212,8 @@ def detect_auth_error(stderr: str) -> bool:
 def classify_error(rc: int, stderr: str, schema_valid: bool) -> str:
     if rc == 124:
         return "timeout"
+    if detect_untrusted_workspace(stderr):
+        return "untrusted_workspace"
     if detect_auth_error(stderr):
         return "auth_error"
     if rc != 0:
@@ -748,6 +765,8 @@ def health_check_quick(timeout: int = 15) -> tuple[bool, str]:
         stderr = proc.stderr.lower()
         stdout = proc.stdout.lower()
         combined = stderr + stdout
+        if detect_untrusted_workspace(combined):
+            return False, "untrusted workspace — run from a trusted repo (pass --workspace <trusted repo>), pass a git repo or a ~/.sessions dir"
         if any(p in combined for p in ("auth", "session", "expired", "token", "credential", "unauthorized", "not logged")):
             return False, "auth/session error — run `devin auth login` and retry"
         return False, f"provider error (rc={proc.returncode}): {proc.stderr[:200]}"
@@ -1124,7 +1143,10 @@ def run_delegate(
     env = os.environ.copy()
     env["PWD"] = str(target_workspace)
 
-    cmd = [devin, "--permission-mode", "dangerous", "--print", prompt]
+    cmd = [devin, "--permission-mode", "dangerous"]
+    if workspace_trust_skippable(target_workspace):
+        cmd += ["--respect-workspace-trust", "false"]
+    cmd += ["--print", prompt]
 
     fallback_used = False
     fallback_reason = ""
@@ -1215,6 +1237,12 @@ def run_delegate(
             )
             status = "auth_error"
         else:
+            if error_category == "untrusted_workspace":
+                print(
+                    "devin-delegate: Devin refused to run in an untrusted workspace (not an auth error). "
+                    "Re-run with --workspace <git repo> (session dirs and worktrees are exempt).\n",
+                    flush=True,
+                )
             envelope_path = repo_root / "artifacts" / "devin-delegate" / "last-envelope.json"
             envelope_path.parent.mkdir(parents=True, exist_ok=True)
             envelope_path.write_text(envelope_text + "\n", encoding="utf-8")

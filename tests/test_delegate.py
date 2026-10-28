@@ -13,6 +13,7 @@ sys.path.insert(0, str(scripts_dir))
 from delegate import (
     estimate_tokens,
     classify_error,
+    workspace_trust_skippable,
     compute_timeout,
     estimate_repo_scale,
     output_is_valid,
@@ -64,6 +65,10 @@ class TestClassifyError:
 
     def test_unknown_error(self):
         assert classify_error(0, "", True) == "unknown"
+
+    def test_untrusted_workspace_is_not_auth_error(self):
+        msg = "Refusing to run in an untrusted workspace (session dir)"
+        assert classify_error(1, msg, True) == "untrusted_workspace"
 
 
 class TestComputeTimeout:
@@ -396,3 +401,12 @@ class TestCodexFallbackModel:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+def test_workspace_trust_skippable(tmp_path):
+    (tmp_path / "plain").mkdir()
+    assert not workspace_trust_skippable(tmp_path / "plain")
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    (wt / ".git").write_text("gitdir: /x")
+    assert workspace_trust_skippable(wt)
