@@ -766,7 +766,7 @@ def health_check_quick(timeout: int = 15) -> tuple[bool, str]:
         stdout = proc.stdout.lower()
         combined = stderr + stdout
         if detect_untrusted_workspace(combined):
-            return False, "untrusted workspace — run from a trusted repo (pass --workspace <trusted repo>), not ~/.sessions/* or a fresh worktree"
+            return False, "untrusted workspace — run from a trusted repo (pass --workspace <trusted repo>), pass a git repo or a ~/.sessions dir"
         if any(p in combined for p in ("auth", "session", "expired", "token", "credential", "unauthorized", "not logged")):
             return False, "auth/session error — run `devin auth login` and retry"
         return False, f"provider error (rc={proc.returncode}): {proc.stderr[:200]}"
@@ -1240,7 +1240,7 @@ def run_delegate(
             if error_category == "untrusted_workspace":
                 print(
                     "devin-delegate: Devin refused to run in an untrusted workspace (not an auth error). "
-                    "Re-run with --workspace <trusted repo>; ~/.sessions/* and fresh worktrees are untrusted.\n",
+                    "Re-run with --workspace <git repo> (session dirs and worktrees are exempt).\n",
                     flush=True,
                 )
             envelope_path = repo_root / "artifacts" / "devin-delegate" / "last-envelope.json"
