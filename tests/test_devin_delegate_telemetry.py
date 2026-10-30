@@ -7,8 +7,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from devin_delegate_telemetry import _maybe_rotate, events_path, summarize  # noqa: E402
-
+from devin_delegate_telemetry import _maybe_rotate, events_path, summarize
 
 # ── events_path ───────────────────────────────────────────────────────────────
 
