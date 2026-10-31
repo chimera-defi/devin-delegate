@@ -744,9 +744,13 @@ def build_envelope(task: str, context_file: str | None) -> dict:
         cmd += ["--context-file", context_file]
 
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=True)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
     except subprocess.TimeoutExpired:
         raise RuntimeError("plan_prompt.py timed out after 120s") from None
+    except FileNotFoundError:
+        raise RuntimeError(f"plan_prompt.py not found or not executable: {cmd[0]}") from None
+    if proc.returncode != 0:
+        raise RuntimeError(f"plan_prompt.py failed (rc={proc.returncode}): {proc.stderr.strip()}") from None
     try:
         return json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
