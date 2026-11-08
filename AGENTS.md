@@ -20,10 +20,5 @@ type(scope): subject [Agent: <MODEL NAME>]
   - `git config core.hooksPath .githooks`
 
 <!-- devin-delegate:begin -->
-All Devin subagent calls MUST route through devin-delegate.
-Direct 'devin --print' calls bypass telemetry, fallback, and workspace context.
-
-- **One-liner:** `devin-delegate --task '...' --workspace /path/to/repo`
-- **Interactive:** `devin-delegate --interactive`
-- **Fallback (if CLI not available):** `~/.agents/skills/devin-delegate/scripts/delegate.py --task '...' --workspace /path/to/repo`
+Route Devin calls through `devin-delegate --task '...' --workspace /path/to/repo` (see README.md). No fallback or telemetry.
 <!-- devin-delegate:end -->
