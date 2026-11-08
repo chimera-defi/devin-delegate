@@ -1,45 +1,11 @@
 ---
 name: devin-delegate
-preamble-tier: 4
-version: 0.2.10
-description: "Delegate bounded research, implement, debug, review, or browser tasks to Devin with workspace envelope/fallback telemetry."
+description: "Delegate unknown-scope, browser/UI or sandbox tasks to Devin through a thin wrapper over `devin -p`."
 allowed-tools:
   - Bash
-  - Read
-  - Edit
-  - Write
 ---
 
 # Devin Delegate
 
-Use for tasks that benefit from Devin sandbox capabilities (browser, shell, file editing, debugging). Skip tiny local edits, unscoped repo-wide reasoning, or local-only sensitive code.
-
-## Required Commands
-
-```bash
-devin-delegate --task "..." --workspace /path/to/repo
-```
-
-Do not call `devin` directly; wrapper usage is required for envelope, fallback, and telemetry.
-
-## Envelope Requirements
-
-Classify task as `research`, `implement`, `debug`, `review`, or `browser`, and include goal, scope, constraints, acceptance checks, workspace, and expected output.
-
-## Failure Policy
-
-- Timeout/provider/schema issues: retry once where supported, then fallback.
-- Auth/session failure: print resume steps, exit code 126, no blind fallback.
-- Clarification: try Codex guidance, then Claude guidance, then ask human. Log model, latency, fallback reason, estimated token savings.
-
-## Support Commands
-
-```bash
-devin-delegate --templates
-devin-delegate --stats
-devin-delegate --history
-devin-delegate --batch tasks.jsonl
-./scripts/devin_delegate_telemetry.py summary --days 14
-```
-
-Use `kimi-delegate` for cheaper bounded research. Details: `references/architecture.md`.
+`devin-delegate --task "<goal, constraints, acceptance check, output format>" --workspace <trusted git repo>`; `devin-delegate --check` for auth.
+Exit 124 = timed out (`DEVIN_DELEGATE_TIMEOUT`, default 600 s); 126 = untrusted workspace or auth failure, do not retry. No fallback: on failure move down the lane ladder (`~/.config/crss/staffing.md`). Verify the output; it is unreviewed.
