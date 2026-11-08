@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# devin-delegate --task TEXT [--workspace DIR] | --check
+# Thin wrapper over `devin -p`. No fallback, no history: callers own the ladder.
+# Env: DEVIN_DELEGATE_TIMEOUT (seconds, default 600). Exit: devin's own; 124 timeout; 126 untrusted workspace/auth.
+set -u
+task="" ws="$PWD"
+while (($#)); do
+  case "$1" in
+    --check) command -v devin >/dev/null || { echo "devin-delegate: devin not found" >&2; exit 1; }
+             devin auth status 2>&1 | head -1; exit "${PIPESTATUS[0]}" ;;
+    --task) task="${2-}"; shift 2 ;;
+    --task=*) task="${1#*=}"; shift ;;
+    --workspace|-w) ws="${2-}"; shift 2 ;;
+    -h|--help) echo "usage: devin-delegate --task TEXT [--workspace DIR] | --check   (env DEVIN_DELEGATE_TIMEOUT, default 600)"; exit 0 ;;
+    -*) echo "devin-delegate: option $1 was removed 2026-11-08 (see SHRINK-REPORT.md)" >&2; exit 2 ;;
+    *) task="$1"; shift ;;
+  esac
+done
+[[ -n "$task" ]] || { echo "devin-delegate: --task required" >&2; exit 2; }
+cd "$ws" || exit 2
+err=$(mktemp); trap 'rm -f "$err"' EXIT
+timeout "${DEVIN_DELEGATE_TIMEOUT:-600}" devin --respect-workspace-trust false --permission-mode auto -p -- "$task" </dev/null 2>"$err"
+rc=$?
+cat "$err" >&2
+if ((rc == 124)); then echo "devin-delegate: timed out after ${DEVIN_DELEGATE_TIMEOUT:-600}s (not a success)" >&2
+elif ((rc != 0)) && grep -qiE 'Refusing to run in an untrusted workspace|not logged in|please log ?in' "$err"; then
+  echo "devin-delegate: untrusted workspace or auth failure; trust the dir in Devin or run 'devin auth login'; no retry" >&2; rc=126
+fi
+exit "$rc"
