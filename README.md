@@ -4,4 +4,4 @@
 
 Optional shell shim (routes raw `devin --print TEXT` through the wrapper): the 8-line `devin()` function in `~/.local/share/devin-delegate-shim.sh`, sourced from `.zshrc`.
 
-Removed 2026-11-08 (zero use in 30 days): fallback engines, telemetry, history, envelope, cache, batch, dashboard, safety sandbox, manage CLI, MCP server, scheduled workflows. See delegate-skill `SHRINK-REPORT.md`.
+Removed 2026-11-08 (zero use in 30 days): fallback engines, telemetry, history, envelope, cache, batch, dashboard, safety sandbox, manage CLI, MCP server, scheduled workflows.
